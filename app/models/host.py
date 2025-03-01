@@ -200,17 +200,6 @@ class BaseHost(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    @field_validator("tcp_settings", "xhttp_settings", "grpc_settings", "kcp_settings", "websocket_settings", mode="after")
-    @classmethod
-    def check_exclusive_fields(cls, v, values):
-        transport_settings = ("xhttp_settings", "grpc_settings", "kcp_settings", "websocket_settings", "tcp_settings")
-        filled_fields = sum(1 for transport in transport_settings if values.get(transport) is not None)
-        if filled_fields > 1:
-            raise ValueError(
-                "Only one of 'tcp_settings', 'xhttp_settings', 'grpc_settings', 'kcp_settings' or 'websocket_settings' can be set. Please provide a value for only one field."
-            )
-        return v
-
 
 class CreateHost(BaseHost):
     @field_validator("remark", mode="after")
@@ -235,6 +224,17 @@ class CreateHost(BaseHost):
         except ValueError:
             raise ValueError("Invalid formatting variables")
 
+        return v
+
+    @field_validator("tcp_settings", "xhttp_settings", "grpc_settings", "kcp_settings", "websocket_settings", mode="after")
+    @classmethod
+    def check_exclusive_fields(cls, v, values):
+        transport_settings = ("xhttp_settings", "grpc_settings", "kcp_settings", "websocket_settings", "tcp_settings")
+        filled_fields = sum(1 for transport in transport_settings if values.get(transport) is not None)
+        if filled_fields > 1:
+            raise ValueError(
+                "Only one of 'tcp_settings', 'xhttp_settings', 'grpc_settings', 'kcp_settings' or 'websocket_settings' can be set. Please provide a value for only one field."
+            )
         return v
 
 
