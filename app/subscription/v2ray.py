@@ -1,28 +1,21 @@
 import base64
-import copy
 import json
 import urllib.parse as urlparse
 from random import choice
 from typing import Union
 from urllib.parse import quote
 from uuid import UUID
-
-from jinja2.exceptions import TemplateNotFound
-
+from . import BaseSubscription
 from app.subscription.funcs import get_grpc_gun, get_grpc_multi
 from app.templates import render_template
 from app.utils.helpers import UUIDEncoder
 from config import (
     EXTERNAL_CONFIG,
-    GRPC_USER_AGENT_TEMPLATE,
-    MUX_TEMPLATE,
-    USER_AGENT_TEMPLATE,
-    V2RAY_SETTINGS_TEMPLATE,
     V2RAY_SUBSCRIPTION_TEMPLATE,
 )
 
 
-class V2rayShareLink(str):
+class V2rayShareLink(BaseSubscription):
     def __init__(self):
         self.links = []
 
@@ -38,10 +31,10 @@ class V2rayShareLink(str):
 
     def add(self, remark: str, address: str, inbound: dict, settings: dict):
         net = inbound["network"]
-        multi_mode = inbound.get("multiMode", False)
+        multi_mode = inbound.get("multi_mode", False)
         old_path: str = inbound["path"]
 
-        if net in ["grpc", "gun"]:
+        if net in ("grpc", "gun"):
             if multi_mode:
                 path = get_grpc_multi(old_path)
             else:
@@ -51,106 +44,55 @@ class V2rayShareLink(str):
 
         else:
             path = old_path
-
+        func_args = dict(
+            remark=remark,
+            address=address,
+            port=inbound["port"],
+            net=net,
+            tls=inbound["tls"],
+            sni=inbound.get("sni", ""),
+            fp=inbound.get("fp", ""),
+            alpn=inbound.get("alpn", ""),
+            pbk=inbound.get("pbk", ""),
+            sid=inbound.get("sid", ""),
+            spx=inbound.get("spx", ""),
+            host=inbound["host"],
+            path=path,
+            type=inbound["header_type"],
+            ais=inbound.get("ais", ""),
+            fs=inbound.get("fragment_settings", ""),
+            multiMode=multi_mode,
+            sc_max_each_post_bytes=inbound.get("sc_max_each_post_bytes"),
+            sc_max_concurrent_posts=inbound.get("sc_max_concurrent_posts"),
+            sc_min_posts_interval_ms=inbound.get("sc_min_posts_interval_ms"),
+            x_padding_bytes=inbound.get("x_padding_bytes"),
+            mode=inbound.get("mode", ""),
+            noGRPCHeader=inbound.get("no_grpc_header"),
+            heartbeatPeriod=inbound.get("heartbeat_period", 0),
+            keepAlivePeriod=inbound.get("keep_alive_period", 0),
+            scStreamUpServerSecs=inbound.get("sc_stream_up_server_secs"),
+            xmux=inbound.get("xmux"),
+            downloadSettings=inbound.get("downloadSettings"),
+            http_headers=inbound.get("http_headers"),
+        )
         if inbound["protocol"] == "vmess":
             link = self.vmess(
-                remark=remark,
-                address=address,
-                port=inbound["port"],
                 id=settings["id"],
-                net=net,
-                tls=inbound["tls"],
-                sni=inbound.get("sni", ""),
-                fp=inbound.get("fp", ""),
-                alpn=inbound.get("alpn", ""),
-                pbk=inbound.get("pbk", ""),
-                sid=inbound.get("sid", ""),
-                spx=inbound.get("spx", ""),
-                host=inbound["host"],
-                path=path,
-                type=inbound["header_type"],
-                ais=inbound.get("ais", ""),
-                fs=inbound.get("fragment_setting", ""),
-                multiMode=multi_mode,
-                sc_max_each_post_bytes=inbound.get("scMaxEachPostBytes"),
-                sc_max_concurrent_posts=inbound.get("scMaxConcurrentPosts"),
-                sc_min_posts_interval_ms=inbound.get("scMinPostsIntervalMs"),
-                x_padding_bytes=inbound.get("xPaddingBytes"),
-                mode=inbound.get("mode", ""),
-                noGRPCHeader=inbound.get("noGRPCHeader"),
-                heartbeatPeriod=inbound.get("heartbeatPeriod", 0),
-                keepAlivePeriod=inbound.get("keepAlivePeriod", 0),
-                scStreamUpServerSecs=inbound.get("scStreamUpServerSecs"),
-                xmux=inbound.get("xmux", {}),
-                downloadSettings=inbound.get("downloadSettings", {}),
+                **func_args,
             )
 
         elif inbound["protocol"] == "vless":
             link = self.vless(
-                remark=remark,
-                address=address,
-                port=inbound["port"],
                 id=settings["id"],
                 flow=settings.get("flow", ""),
-                net=net,
-                tls=inbound["tls"],
-                sni=inbound.get("sni", ""),
-                fp=inbound.get("fp", ""),
-                alpn=inbound.get("alpn", ""),
-                pbk=inbound.get("pbk", ""),
-                sid=inbound.get("sid", ""),
-                spx=inbound.get("spx", ""),
-                host=inbound["host"],
-                path=path,
-                type=inbound["header_type"],
-                ais=inbound.get("ais", ""),
-                fs=inbound.get("fragment_setting", ""),
-                multiMode=multi_mode,
-                sc_max_each_post_bytes=inbound.get("scMaxEachPostBytes"),
-                sc_max_concurrent_posts=inbound.get("scMaxConcurrentPosts"),
-                sc_min_posts_interval_ms=inbound.get("scMinPostsIntervalMs"),
-                x_padding_bytes=inbound.get("xPaddingBytes"),
-                mode=inbound.get("mode", ""),
-                noGRPCHeader=inbound.get("noGRPCHeader"),
-                heartbeatPeriod=inbound.get("heartbeatPeriod", 0),
-                keepAlivePeriod=inbound.get("keepAlivePeriod", 0),
-                scStreamUpServerSecs=inbound.get("scStreamUpServerSecs"),
-                xmux=inbound.get("xmux", {}),
-                downloadSettings=inbound.get("downloadSettings", {}),
+                **func_args,
             )
 
         elif inbound["protocol"] == "trojan":
             link = self.trojan(
-                remark=remark,
-                address=address,
-                port=inbound["port"],
                 password=settings["password"],
                 flow=settings.get("flow", ""),
-                net=net,
-                tls=inbound["tls"],
-                sni=inbound.get("sni", ""),
-                fp=inbound.get("fp", ""),
-                alpn=inbound.get("alpn", ""),
-                pbk=inbound.get("pbk", ""),
-                sid=inbound.get("sid", ""),
-                spx=inbound.get("spx", ""),
-                host=inbound["host"],
-                path=path,
-                type=inbound["header_type"],
-                ais=inbound.get("ais", ""),
-                fs=inbound.get("fragment_setting", ""),
-                multiMode=multi_mode,
-                sc_max_each_post_bytes=inbound.get("scMaxEachPostBytes"),
-                sc_max_concurrent_posts=inbound.get("scMaxConcurrentPosts"),
-                sc_min_posts_interval_ms=inbound.get("scMinPostsIntervalMs"),
-                x_padding_bytes=inbound.get("xPaddingBytes"),
-                mode=inbound.get("mode", ""),
-                noGRPCHeader=inbound.get("noGRPCHeader"),
-                heartbeatPeriod=inbound.get("heartbeatPeriod", 0),
-                keepAlivePeriod=inbound.get("keepAlivePeriod", 0),
-                xmux=inbound.get("xmux", {}),
-                scStreamUpServerSecs=inbound.get("scStreamUpServerSecs"),
-                downloadSettings=inbound.get("downloadSettings", {}),
+                **func_args,
             )
 
         elif inbound["protocol"] == "shadowsocks":
@@ -166,9 +108,8 @@ class V2rayShareLink(str):
 
         self.add_link(link=link)
 
-    @classmethod
     def vmess(
-        cls,
+        self,
         remark: str,
         address: str,
         port: int,
@@ -196,8 +137,10 @@ class V2rayShareLink(str):
         heartbeatPeriod: int | None = None,
         scStreamUpServerSecs: int | None = None,
         keepAlivePeriod: int = 0,
-        xmux: dict = {},
-        downloadSettings: dict = {},
+        xmux: dict | None = None,
+        downloadSettings: dict | None = None,
+        random_user_agent: bool = False,
+        http_headers: dict | None = None,
     ):
         payload = {
             "add": address,
@@ -242,25 +185,26 @@ class V2rayShareLink(str):
                 payload["mode"] = "gun"
 
         elif net in ("splithttp", "xhttp"):
-            extra = {}
-            if sc_max_each_post_bytes is not None:
-                extra["scMaxEachPostBytes"] = sc_max_each_post_bytes
-            if sc_max_concurrent_posts is not None:
-                extra["scMaxConcurrentPosts"] = sc_max_concurrent_posts
-            if sc_min_posts_interval_ms is not None:
-                extra["scMinPostsIntervalMs"] = sc_min_posts_interval_ms
-            if x_padding_bytes is not None:
-                extra["xPaddingBytes"] = x_padding_bytes
-            if noGRPCHeader is not None:
-                extra["noGRPCHeader"] = noGRPCHeader
-            if scStreamUpServerSecs is not None:
-                extra["scStreamUpServerSecs"] = scStreamUpServerSecs
-            if keepAlivePeriod > 0:
-                extra["keepAlivePeriod"] = keepAlivePeriod
-            if xmux:
-                extra["xmux"] = xmux
-            if downloadSettings:
-                extra["downloadSettings"] = downloadSettings
+            extra = {
+                "scMaxEachPostBytes": sc_max_each_post_bytes,
+                "scMaxConcurrentPosts": sc_max_concurrent_posts,
+                "scMinPostsIntervalMs": sc_min_posts_interval_ms,
+                "xPaddingBytes": x_padding_bytes,
+                "noGRPCHeader":  noGRPCHeader,
+                "scStreamUpServerSecs": scStreamUpServerSecs,
+                "keepAlivePeriod": keepAlivePeriod,
+                "xmux": xmux,
+                "downloadSettings": downloadSettings,
+                "headers": http_headers if http_headers is not None else {},
+            }
+            if random_user_agent:
+                if mode in ("stream-one", "stream-up") and not noGRPCHeader:
+                    extra["headers"]["User-Agent"] = choice(self.grpc_user_agent_data)
+                else:
+                    extra["headers"]["User-Agent"] = choice(self.user_agent_list)
+
+            extra = self._remove_none_values(extra)
+
             payload["type"] = mode
             if extra:
                 payload["extra"] = (json.dumps(extra)).replace(" ", "")
@@ -271,9 +215,8 @@ class V2rayShareLink(str):
 
         return "vmess://" + base64.b64encode(json.dumps(payload, sort_keys=True).encode("utf-8")).decode()
 
-    @classmethod
     def vless(
-        cls,
+        self,
         remark: str,
         address: str,
         port: int,
@@ -302,8 +245,10 @@ class V2rayShareLink(str):
         heartbeatPeriod: int | None = None,
         scStreamUpServerSecs: int | None = None,
         keepAlivePeriod: int = 0,
-        xmux: dict = {},
-        downloadSettings: dict = {},
+        http_headers: dict | None = None,
+        xmux: dict | None = None,
+        random_user_agent: bool = False,
+        downloadSettings: dict | None = None,
     ):
         payload = {"security": tls, "type": net, "headerType": type}
         if flow and (tls in ("tls", "reality") and net in ("tcp", "raw", "kcp") and type != "http"):
@@ -325,25 +270,26 @@ class V2rayShareLink(str):
             payload["path"] = path
             payload["host"] = host
             payload["mode"] = mode
-            extra = {}
-            if sc_max_each_post_bytes is not None:
-                extra["scMaxEachPostBytes"] = sc_max_each_post_bytes
-            if sc_max_concurrent_posts is not None:
-                extra["scMaxConcurrentPosts"] = sc_max_concurrent_posts
-            if sc_min_posts_interval_ms is not None:
-                extra["scMinPostsIntervalMs"] = sc_min_posts_interval_ms
-            if x_padding_bytes is not None:
-                extra["xPaddingBytes"] = x_padding_bytes
-            if noGRPCHeader is not None:
-                extra["noGRPCHeader"] = noGRPCHeader
-            if scStreamUpServerSecs is not None:
-                extra["scStreamUpServerSecs"] = scStreamUpServerSecs
-            if keepAlivePeriod > 0:
-                extra["keepAlivePeriod"] = keepAlivePeriod
-            if xmux:
-                extra["xmux"] = xmux
-            if downloadSettings:
-                extra["downloadSettings"] = downloadSettings
+            extra = {
+                "scMaxEachPostBytes": sc_max_each_post_bytes,
+                "scMaxConcurrentPosts": sc_max_concurrent_posts,
+                "scMinPostsIntervalMs": sc_min_posts_interval_ms,
+                "xPaddingBytes": x_padding_bytes,
+                "noGRPCHeader":  noGRPCHeader,
+                "scStreamUpServerSecs": scStreamUpServerSecs,
+                "keepAlivePeriod": keepAlivePeriod,
+                "xmux": xmux,
+                "downloadSettings": downloadSettings,
+                "headers": http_headers if http_headers is not None else {},
+            }
+            if random_user_agent:
+                if mode in ("stream-one", "stream-up") and not noGRPCHeader:
+                    extra["headers"]["User-Agent"] = choice(self.grpc_user_agent_data)
+                else:
+                    extra["headers"]["User-Agent"] = choice(self.user_agent_list)
+
+            extra = self._remove_none_values(extra)
+
             if extra:
                 payload["extra"] = (json.dumps(extra)).replace(" ", "")
 
@@ -381,9 +327,8 @@ class V2rayShareLink(str):
 
         return "vless://" + f"{id}@{address}:{port}?" + urlparse.urlencode(payload) + f"#{(urlparse.quote(remark))}"
 
-    @classmethod
     def trojan(
-        cls,
+        self,
         remark: str,
         address: str,
         port: int,
@@ -412,8 +357,10 @@ class V2rayShareLink(str):
         heartbeatPeriod: int | None = None,
         scStreamUpServerSecs: int | None = None,
         keepAlivePeriod: int = 0,
-        xmux: dict = {},
-        downloadSettings: dict = {},
+        http_headers: dict | None = None,
+        xmux: dict | None = None,
+        random_user_agent: bool = False,
+        downloadSettings: dict | None = None,
     ):
         payload = {"security": tls, "type": net, "headerType": type}
         if flow and (tls in ("tls", "reality") and net in ("tcp", "raw", "kcp") and type != "http"):
@@ -431,25 +378,26 @@ class V2rayShareLink(str):
             payload["path"] = path
             payload["host"] = host
             payload["mode"] = mode
-            extra = {}
-            if sc_max_each_post_bytes is not None:
-                extra["scMaxEachPostBytes"] = sc_max_each_post_bytes
-            if sc_max_concurrent_posts is not None:
-                extra["scMaxConcurrentPosts"] = sc_max_concurrent_posts
-            if sc_min_posts_interval_ms is not None:
-                extra["scMinPostsIntervalMs"] = sc_min_posts_interval_ms
-            if x_padding_bytes is not None:
-                extra["xPaddingBytes"] = x_padding_bytes
-            if noGRPCHeader is not None:
-                extra["noGRPCHeader"] = noGRPCHeader
-            if keepAlivePeriod > 0:
-                extra["keepAlivePeriod"] = keepAlivePeriod
-            if scStreamUpServerSecs is not None:
-                extra["scStreamUpServerSecs"] = scStreamUpServerSecs
-            if xmux:
-                extra["xmux"] = xmux
-            if downloadSettings:
-                extra["downloadSettings"] = downloadSettings
+            extra = {
+                "scMaxEachPostBytes": sc_max_each_post_bytes,
+                "scMaxConcurrentPosts": sc_max_concurrent_posts,
+                "scMinPostsIntervalMs": sc_min_posts_interval_ms,
+                "xPaddingBytes": x_padding_bytes,
+                "noGRPCHeader":  noGRPCHeader,
+                "scStreamUpServerSecs": scStreamUpServerSecs,
+                "keepAlivePeriod": keepAlivePeriod,
+                "xmux": xmux,
+                "downloadSettings": downloadSettings,
+                "headers": http_headers if http_headers is not None else {},
+            }
+            if random_user_agent:
+                if mode in ("stream-one", "stream-up") and not noGRPCHeader:
+                    extra["headers"]["User-Agent"] = choice(self.grpc_user_agent_data)
+                else:
+                    extra["headers"]["User-Agent"] = choice(self.user_agent_list)
+
+            extra = self._remove_none_values(extra)
+
             if extra:
                 payload["extra"] = (json.dumps(extra)).replace(" ", "")
 
@@ -495,8 +443,7 @@ class V2rayShareLink(str):
             + f"#{urlparse.quote(remark)}"
         )
 
-    @classmethod
-    def shadowsocks(cls, remark: str, address: str, port: int, password: str, method: str):
+    def shadowsocks(self, remark: str, address: str, port: int, password: str, method: str):
         return (
             "ss://"
             + base64.b64encode(f"{method}:{password}".encode()).decode()
@@ -504,31 +451,10 @@ class V2rayShareLink(str):
         )
 
 
-class V2rayJsonConfig(str):
+class V2rayJsonConfig(BaseSubscription):
     def __init__(self):
         self.config = []
         self.template = render_template(V2RAY_SUBSCRIPTION_TEMPLATE)
-        self.mux_template = render_template(MUX_TEMPLATE)
-        user_agent_data = json.loads(render_template(USER_AGENT_TEMPLATE))
-
-        if "list" in user_agent_data and isinstance(user_agent_data["list"], list):
-            self.user_agent_list = user_agent_data["list"]
-        else:
-            self.user_agent_list = []
-
-        grpc_user_agent_data = json.loads(render_template(GRPC_USER_AGENT_TEMPLATE))
-
-        if "list" in grpc_user_agent_data and isinstance(grpc_user_agent_data["list"], list):
-            self.grpc_user_agent_data = grpc_user_agent_data["list"]
-        else:
-            self.grpc_user_agent_data = []
-
-        try:
-            self.settings = json.loads(render_template(V2RAY_SETTINGS_TEMPLATE))
-        except TemplateNotFound:
-            self.settings = {}
-
-        del user_agent_data, grpc_user_agent_data
 
     def add_config(self, remarks, outbounds):
         json_template = json.loads(self.template)
@@ -541,75 +467,53 @@ class V2rayJsonConfig(str):
             self.config.reverse()
         return json.dumps(self.config, indent=4, cls=UUIDEncoder)
 
-    @staticmethod
-    def tls_config(sni=None, fp=None, alpn=None, ais: bool = False) -> dict:
-        tlsSettings = {}
-        if sni is not None:
-            tlsSettings["serverName"] = sni
+    def tls_config(self, sni=None, fp=None, alpn=None, ais: bool = False) -> dict:
+        tlsSettings = {
+            "serverName": sni,
+            "allowInsecure": ais if ais else False,
+            "fingerprint": fp,
+            "alpn": ([alpn] if not isinstance(alpn, list) else alpn) if fp else None,
+            "show": False,
+        }
 
-        tlsSettings["allowInsecure"] = ais if ais else False
+        return self._remove_none_values(tlsSettings)
 
-        if fp:
-            tlsSettings["fingerprint"] = fp
-        if alpn:
-            tlsSettings["alpn"] = [alpn] if not isinstance(alpn, list) else alpn
-
-        tlsSettings["show"] = False
-
-        return tlsSettings
-
-    @staticmethod
-    def reality_config(sni=None, fp=None, pbk=None, sid=None, spx=None) -> dict:
-        realitySettings = {}
-        if sni is not None:
-            realitySettings["serverName"] = sni
-        if fp:
-            realitySettings["fingerprint"] = fp
-
-        realitySettings["show"] = False
-
-        if pbk:
-            realitySettings["publicKey"] = pbk
-        if sid:
-            realitySettings["shortId"] = sid
-        if spx:
-            realitySettings["spiderX"] = spx
-
-        return realitySettings
+    def reality_config(self, sni=None, fp=None, pbk=None, sid=None, spx=None) -> dict:
+        realitySettings = {
+            "serverName": sni,
+            "fingerprint": fp,
+            "show": False,
+            "publicKey": pbk,
+            "shortId": sid,
+            "spiderX": spx,
+        }
+        return self._remove_none_values(realitySettings)
 
     def ws_config(
-        self, path: str = "", host: str = "", random_user_agent: bool = False, heartbeatPeriod: int = 0
+        self, path: str = "", host: str = "", random_user_agent: bool = False, heartbeatPeriod: int | None = None, http_headers: dict | None = None
     ) -> dict:
-        wsSettings = copy.deepcopy(self.settings.get("wsSettings", {}))
-
-        if "headers" not in wsSettings:
-            wsSettings["headers"] = {}
-        if path:
-            wsSettings["path"] = path
-        if host:
-            wsSettings["host"] = host
+        wsSettings = {
+            "headers": http_headers if http_headers is not None else {},
+            "heartbeatPeriod": heartbeatPeriod,
+            "path": path,
+            "host": host,
+        }
         if random_user_agent:
             wsSettings["headers"]["User-Agent"] = choice(self.user_agent_list)
-        if heartbeatPeriod:
-            wsSettings["heartbeatPeriod"] = heartbeatPeriod
+        return self._remove_none_values(wsSettings)
 
-        return wsSettings
-
-    def httpupgrade_config(self, path: str = "", host: str = "", random_user_agent: bool = False) -> dict:
-        httpupgradeSettings = copy.deepcopy(self.settings.get("httpupgradeSettings", {}))
-
-        if "headers" not in httpupgradeSettings:
-            httpupgradeSettings["headers"] = {}
-        if path:
-            httpupgradeSettings["path"] = path
-        if host:
-            httpupgradeSettings["host"] = host
+    def httpupgrade_config(self, path: str = "", host: str = "", random_user_agent: bool = False, http_headers=None) -> dict:
+        httpupgradeSettings = {
+            "headers": http_headers if http_headers is not None else {},
+            "path": path,
+            "host": host,
+        }
         if random_user_agent:
             httpupgradeSettings["headers"]["User-Agent"] = choice(self.user_agent_list)
 
-        return httpupgradeSettings
+        return self._remove_none_values(httpupgradeSettings)
 
-    def splithttp_config(
+    def xhttp_config(
         self,
         path: str = "",
         host: str = "",
@@ -618,186 +522,133 @@ class V2rayJsonConfig(str):
         sc_max_concurrent_posts: int | None = None,
         sc_min_posts_interval_ms: int | None = None,
         x_padding_bytes: str | None = None,
-        xmux: dict = {},
-        downloadSettings: dict = {},
+        xmux: dict | None = None,
+        downloadSettings: dict | None = None,
         mode: str = "",
         noGRPCHeader: bool | None = None,
         scStreamUpServerSecs: int | None = None,
-        keepAlivePeriod: int = 0,
+        http_headers: dict | None = None
     ) -> dict:
-        config = copy.deepcopy(self.settings.get("splithttpSettings", {}))
+        xhttSettings = {}
 
-        config["mode"] = mode
+        xhttSettings["mode"] = mode
         if path:
-            config["path"] = path
+            xhttSettings["path"] = path
         if host:
-            config["host"] = host
+            xhttSettings["host"] = host
         if random_user_agent:
-            config["headers"]["User-Agent"] = choice(self.user_agent_list)
-        extra = {}
-        if sc_max_each_post_bytes is not None:
-            extra["scMaxEachPostBytes"] = sc_max_each_post_bytes
-        if sc_max_concurrent_posts is not None:
-            extra["scMaxConcurrentPosts"] = sc_max_concurrent_posts
-        if sc_min_posts_interval_ms is not None:
-            extra["scMinPostsIntervalMs"] = sc_min_posts_interval_ms
-        if x_padding_bytes is not None:
-            extra["xPaddingBytes"] = x_padding_bytes
-        if noGRPCHeader is not None:
-            extra["noGRPCHeader"] = noGRPCHeader
-        if scStreamUpServerSecs is not None:
-            extra["scStreamUpServerSecs"] = scStreamUpServerSecs
-        if keepAlivePeriod > 0:
-            extra["keepAlivePeriod"] = keepAlivePeriod
-        if xmux:
-            extra["xmux"] = xmux
-        if downloadSettings:
-            extra["downloadSettings"] = downloadSettings
-        if extra:
-            config["extra"] = extra
-        # core will ignore unknown variables
+            xhttSettings["headers"]["User-Agent"] = choice(self.user_agent_list)
+            extra = {
+                "headers": http_headers if http_headers is not None else {},
+                "scMaxEachPostBytes": sc_max_each_post_bytes,
+                "scMaxConcurrentPosts": sc_max_concurrent_posts,
+                "scMinPostsIntervalMs": sc_min_posts_interval_ms,
+                "xPaddingBytes": x_padding_bytes,
+                "noGRPCHeader":  noGRPCHeader,
+                "scStreamUpServerSecs": scStreamUpServerSecs,
+                "xmux": xmux,
+                "downloadSettings": downloadSettings,
+            }
+        if random_user_agent:
+            if mode in ("stream-one", "stream-up") and not noGRPCHeader:
+                extra["headers"]["User-Agent"] = choice(self.grpc_user_agent_data)
+            else:
+                extra["headers"]["User-Agent"] = choice(self.user_agent_list)
 
-        return config
+        return self._remove_none_values(xhttSettings)
 
     def grpc_config(
-        self, path: str = "", host: str = "", multiMode: bool = False, random_user_agent: bool = False
+        self, path: str = "", host: str = "", multiMode: bool = False, random_user_agent: bool = False, idle_timeout=None, health_check_timeout=None, permit_without_stream=False, initial_windows_size=None, http_headers=None
     ) -> dict:
-        config = copy.deepcopy(
-            self.settings.get(
-                "grpcSettings",
-                {
-                    "idle_timeout": 60,
-                    "health_check_timeout": 20,
-                    "permit_without_stream": False,
-                    "initial_windows_size": 35538,
-                },
-            )
-        )
-
-        config["multiMode"] = multiMode
-
-        if path:
-            config["serviceName"] = path
-        if host:
-            config["authority"] = host
-
+        grpcSettings = {
+            "idle_timeout": idle_timeout if idle_timeout is not None else 60,
+            "health_check_timeout": health_check_timeout if health_check_timeout is not None else 20,
+            "permit_without_stream": permit_without_stream,
+            "initial_windows_size": initial_windows_size if initial_windows_size is not None else 35538,
+            "serviceName": path,
+            "authority": host,
+            "multiMode": multiMode,
+        }
+        if http_headers and "user-agent" in http_headers:
+            grpcSettings["user_agent"] = http_headers["user-agent"]
         if random_user_agent:
-            config["user_agent"] = choice(self.grpc_user_agent_data)
+            grpcSettings["user_agent"] = choice(self.grpc_user_agent_data)
+        return self._remove_none_values(grpcSettings)
 
-        return config
-
-    def tcp_config(self, headers="none", path: str = "", host: str = "", random_user_agent: bool = False) -> dict:
+    def tcp_config(self, headers="none", path: str = "", host: str = "", random_user_agent: bool = False, request: dict | None = None, response: dict | None = None) -> dict:
         if headers == "http":
-            config = copy.deepcopy(
-                self.settings.get(
-                    "tcphttpSettings",
-                    {
-                        "header": {
-                            "request": {
-                                "headers": {
-                                    "Accept-Encoding": ["gzip", "deflate"],
-                                    "Connection": ["keep-alive"],
-                                    "Pragma": "no-cache",
-                                },
-                                "method": "GET",
-                                "version": "1.1",
-                            }
-                        }
-                    },
-                )
-            )
+            tcpSettings = {
+                "header": {
+                    "type": headers,
+                    "request": request if request else
+                    {"version": "1.1",
+                     "method": "GET",
+                     "headers": {
+                         "Accept-Encoding": ["gzip, deflate"],
+                         "Connection": ["keep-alive"],
+                         "Pragma": ["no-cache"]
+                     }},
+                    "response": response if response else
+                    {"version": "1.1",
+                     "status": "200",
+                     "reason": "OK",
+                     "headers": {
+                         "Content-Type": ["application/octet-stream", "video/mpeg"],
+                         "Transfer-Encoding": ["chunked"],
+                         "Connection": ["keep-alive"],
+                         "Pragma": ["no-cache"]
+                     }},
+                }
+            },
         else:
-            config = copy.deepcopy(
-                self.settings.get("tcpSettings", self.settings.get("rawSettings", {"header": {"type": "none"}}))
-            )
-        if "header" not in config:
-            config["header"] = {}
-
-        if headers:
-            config["header"]["type"] = headers
+            tcpSettings = {"header": {"type": headers}}
 
         if any((path, host, random_user_agent)):
-            if "request" not in config["header"]:
-                config["header"]["request"] = {}
+            if "request" not in tcpSettings["header"]:
+                tcpSettings["header"]["request"] = {}
 
         if any((random_user_agent, host)):
-            if "headers" not in config["header"]["request"]:
-                config["header"]["request"]["headers"] = {}
+            if "headers" not in tcpSettings["header"]["request"]:
+                tcpSettings["header"]["request"]["headers"] = {}
 
         if path:
-            config["header"]["request"]["path"] = [path]
+            tcpSettings["header"]["request"]["path"] = [path]
 
         if host:
-            config["header"]["request"]["headers"]["Host"] = [host]
+            tcpSettings["header"]["request"]["headers"]["Host"] = [host]
 
         if random_user_agent:
-            config["header"]["request"]["headers"]["User-Agent"] = [choice(self.user_agent_list)]
+            tcpSettings["header"]["request"]["headers"]["User-Agent"] = [choice(self.user_agent_list)]
 
-        return config
+        return tcpSettings
 
-    def http_config(self, net="http", path: str = "", host: str = "", random_user_agent: bool = False) -> dict:
-        if net == "h2":
-            config = copy.deepcopy(self.settings.get("h2Settings", {"header": {}}))
-        elif net == "h3":
-            config = copy.deepcopy(self.settings.get("h3Settings", {"header": {}}))
-        else:
-            config = self.settings.get("httpSettings", {"header": {}})
-        if "header" not in config:
-            config["header"] = {}
-
-        config["path"] = path
-        if host:
-            config["host"] = [host]
-        else:
-            config["host"] = []
+    def http_config(self, path: str = "", host: str = "", random_user_agent: bool = False, http_headers: dict | None = None) -> dict:
+        httpSettings = {
+            "headers": {k: [v] for k, v in http_headers.items()} if http_headers is not None else {},
+            "path": path,
+            "host": [host] if host else [],
+        }
         if random_user_agent:
-            config["headers"]["User-Agent"] = [choice(self.user_agent_list)]
+            httpSettings["headers"]["User-Agent"] = [choice(self.user_agent_list)]
+        return self._remove_none_values(httpSettings)
 
-        return config
+    def quic_config(self, path=None, host=None, header="none") -> dict:
+        quicSettings = {"security": host, "header": {"type": header}, "key": path}
+        return self._remove_none_values(quicSettings)
 
-    def quic_config(self, path=None, host=None, header=None) -> dict:
-        quicSettings = copy.deepcopy(
-            self.settings.get("quicSettings", {"security": "none", "header": {"type": "none"}, "key": ""})
-        )
-        if "header" not in quicSettings:
-            quicSettings["header"] = {"type": "none"}
-
-        if path:
-            quicSettings["key"] = path
-        if host:
-            quicSettings["security"] = host
-        if header:
-            quicSettings["header"]["type"] = header
-
-        return quicSettings
-
-    def kcp_config(self, seed=None, host=None, header=None) -> dict:
-        kcpSettings = copy.deepcopy(
-            self.settings.get(
-                "kcpSettings",
-                {
-                    "header": {"type": "none"},
-                    "mtu": 1350,
-                    "tti": 50,
-                    "uplinkCapacity": 12,
-                    "downlinkCapacity": 100,
-                    "congestion": False,
-                    "readBufferSize": 2,
-                    "writeBufferSize": 2,
-                },
-            )
-        )
-        if "header" not in kcpSettings:
-            kcpSettings["header"] = {"type": "none"}
-
-        if seed:
-            kcpSettings["seed"] = seed
-        if header:
-            kcpSettings["header"]["type"] = header
-        if host:
-            kcpSettings["header"]["domain"] = host
-
-        return kcpSettings
+    def kcp_config(self, seed=None, host=None, header="none", mtu=None, tti=None, uplinkCapacity=None, downlinkCapacity=None, congestion=False, readBufferSize=None, writeBufferSize=None) -> dict:
+        kcpSettings = {
+            "header": {"type": header, "domain": host},
+            "mtu": mtu if mtu else 1350,
+            "tti": tti if tti else 50,
+            "uplinkCapacity": uplinkCapacity if uplinkCapacity else 12,
+            "downlinkCapacity": downlinkCapacity if downlinkCapacity else 100,
+            "congestion": congestion,
+            "readBufferSize": readBufferSize if readBufferSize else 2,
+            "writeBufferSize": writeBufferSize if writeBufferSize else 2,
+            "seed": seed,
+        }
+        return self._remove_none_values(kcpSettings)
 
     @staticmethod
     def stream_setting_config(
@@ -825,7 +676,7 @@ class V2rayJsonConfig(str):
                     "address": address,
                     "port": port,
                     "users": [
-                        {"id": id, "alterId": 0, "email": "https://gozargah.github.io/marzban/", "security": "auto"}
+                        {"id": id, "alterId": 0, "email": "t@t.com", "security": "auto"}
                     ],
                 }
             ]
@@ -843,7 +694,7 @@ class V2rayJsonConfig(str):
                             "id": id,
                             "security": "auto",
                             "encryption": "none",
-                            "email": "https://gozargah.github.io/marzban/",
+                            "email": "t@t.com",
                             "alterId": 0,
                             "flow": flow,
                         }
@@ -860,7 +711,7 @@ class V2rayJsonConfig(str):
                     "address": address,
                     "port": port,
                     "password": password,
-                    "email": "https://gozargah.github.io/marzban/",
+                    "email": "t@t.com",
                 }
             ]
         }
@@ -873,44 +724,22 @@ class V2rayJsonConfig(str):
                     "address": address,
                     "port": port,
                     "password": password,
-                    "email": "https://gozargah.github.io/marzban/",
+                    "email": "t@t.com",
                     "method": method,
                     "uot": False,
                 }
             ]
         }
 
-    @staticmethod
-    def make_fragment(fragment: str) -> dict:
-        length, interval, packets = fragment.split(",")
-        return {"packets": packets, "length": length, "interval": interval}
-
-    @staticmethod
-    def make_noises(noises: str) -> list:
-        sn = noises.split("&")
-        noises_settings = []
-        for n in sn:
-            try:
-                tp, delay = n.split(",")
-                _type, packet = tp.split(":")
-                noises_settings.append({"type": _type, "packet": packet, "delay": delay})
-            except ValueError:
-                pass
-
-        return noises_settings
-
-    @staticmethod
-    def make_dialer_outbound(fragment: str = "", noises: str = "") -> Union[dict, None]:
-        dialer_settings = {}
-        if fragment:
-            dialer_settings["fragment"] = V2rayJsonConfig.make_fragment(fragment)
-        if noises:
-            dialer_settings["noises"] = V2rayJsonConfig.make_noises(noises)
+    def make_dialer_outbound(self, fragment: dict | None = None, noises: dict | None = None) -> Union[dict, None]:
+        dialer_settings = {
+            "fragment": fragment,
+            "noises": noises,
+        }
+        dialer_settings = self._remove_none_values(dialer_settings)
 
         if dialer_settings:
             return {"tag": "dialer", "protocol": "freedom", "settings": dialer_settings}
-
-        return None
 
     def make_stream_setting(
         self,
@@ -940,29 +769,58 @@ class V2rayJsonConfig(str):
         scStreamUpServerSecs: int | None = None,
         heartbeatPeriod: int = 0,
         keepAlivePeriod: int = 0,
+        http_headers: dict | None = None,
+        idle_timeout=None,
+        health_check_timeout=None,
+        permit_without_stream=False,
+        initial_windows_size=None,
+        request: dict | None = None,
+        response: dict | None = None,
+        mtu=None,
+        tti=None,
+        uplinkCapacity=None,
+        downlinkCapacity=None,
+        congestion=False,
+        readBufferSize=None,
+        writeBufferSize=None,
+        early_data: int | None = None,
     ) -> dict:
         if net == "ws":
             network_setting = self.ws_config(
-                path=path, host=host, random_user_agent=random_user_agent, heartbeatPeriod=heartbeatPeriod
+                path=path, host=host, random_user_agent=random_user_agent, heartbeatPeriod=heartbeatPeriod, http_headers=http_headers, early_data=early_data
             )
         elif net == "grpc":
             network_setting = self.grpc_config(
-                path=path, host=host, multiMode=multiMode, random_user_agent=random_user_agent
+                path=path, host=host, multiMode=multiMode, random_user_agent=random_user_agent, idle_timeout=idle_timeout,
+                health_check_timeout=health_check_timeout, permit_without_stream=permit_without_stream, initial_windows_size=initial_windows_size, http_headers=http_headers,
             )
         elif net in ("h3", "h2", "http"):
-            network_setting = self.http_config(net=net, path=path, host=host, random_user_agent=random_user_agent)
+            network_setting = self.http_config(
+                net=net, path=path, host=host, random_user_agent=random_user_agent, http_headers=http_headers)
         elif net == "kcp":
-            network_setting = self.kcp_config(seed=path, host=host, header=headers)
+            network_setting = self.kcp_config(
+                seed=path,
+                host=host,
+                header=headers,
+                mtu=mtu,
+                tti=tti,
+                uplinkCapacity=uplinkCapacity,
+                downlinkCapacity=downlinkCapacity,
+                congestion=congestion,
+                readBufferSize=readBufferSize,
+                writeBufferSize=writeBufferSize,
+            )
         elif net in ("tcp", "raw") and tls != "reality":
             network_setting = self.tcp_config(
-                headers=headers, path=path, host=host, random_user_agent=random_user_agent
+                headers=headers, path=path, host=host, random_user_agent=random_user_agent, request=request, response=response
             )
         elif net == "quic":
             network_setting = self.quic_config(path=path, host=host, header=headers)
         elif net == "httpupgrade":
-            network_setting = self.httpupgrade_config(path=path, host=host, random_user_agent=random_user_agent)
+            network_setting = self.httpupgrade_config(
+                path=path, host=host, random_user_agent=random_user_agent, http_headers=http_headers, early_data=early_data)
         elif net in ("splithttp", "xhttp"):
-            network_setting = self.splithttp_config(
+            network_setting = self.xhttp_config(
                 path=path,
                 host=host,
                 random_user_agent=random_user_agent,
@@ -976,6 +834,7 @@ class V2rayJsonConfig(str):
                 noGRPCHeader=noGRPCHeader,
                 keepAlivePeriod=keepAlivePeriod,
                 scStreamUpServerSecs=scStreamUpServerSecs,
+                http_headers=http_headers
             )
         else:
             network_setting = {}
@@ -1006,12 +865,12 @@ class V2rayJsonConfig(str):
 
         tls = inbound["tls"]
         headers = inbound["header_type"]
-        fragment = inbound["fragment_setting"]
-        noise = inbound["noise_setting"]
+        fragment = inbound["fragment_settings"]
+        noise = inbound["noise_settings"]
         path = inbound["path"]
-        multi_mode = inbound.get("multiMode", False)
+        multi_mode = inbound.get("multi_mode", False)
 
-        if net in ["grpc", "gun"]:
+        if net in ("grpc", "gun"):
             if multi_mode:
                 path = get_grpc_multi(path)
             else:
@@ -1062,24 +921,36 @@ class V2rayJsonConfig(str):
             dialer_proxy=dialer_proxy,
             multiMode=multi_mode,
             random_user_agent=inbound.get("random_user_agent", False),
-            sc_max_each_post_bytes=inbound.get("scMaxEachPostBytes"),
-            sc_max_concurrent_posts=inbound.get("scMaxConcurrentPosts"),
-            sc_min_posts_interval_ms=inbound.get("scMinPostsIntervalMs"),
-            x_padding_bytes=inbound.get("xPaddingBytes"),
+            sc_max_each_post_bytes=inbound.get("sc_max_each_post_bytes"),
+            sc_max_concurrent_posts=inbound.get("sc_max_concurrent_posts"),
+            sc_min_posts_interval_ms=inbound.get("sc_min_posts_interval_ms"),
+            x_padding_bytes=inbound.get("x_padding_bytes"),
             xmux=inbound.get("xmux", {}),
             downloadSettings=inbound.get("downloadSettings", {}),
             mode=inbound.get("mode", "auto"),
-            noGRPCHeader=inbound.get("noGRPCHeader"),
-            heartbeatPeriod=inbound.get("heartbeatPeriod", 0),
-            keepAlivePeriod=inbound.get("keepAlivePeriod", 0),
-            scStreamUpServerSecs=inbound.get("scStreamUpServerSecs"),
+            noGRPCHeader=inbound.get("no_grpc_header"),
+            heartbeatPeriod=inbound.get("heartbeat_period", 0),
+            keepAlivePeriod=inbound.get("keep_alive_period", 0),
+            scStreamUpServerSecs=inbound.get("sc_stream_up_server_secs"),
+            http_headers=inbound.get("http_headers"),
+            request=inbound.get("request"),
+            response=inbound.get("response"),
+            mtu=inbound.get("mtu"),
+            tti=inbound.get("tti"),
+            uplinkCapacity=inbound.get("uplink_capacity"),
+            downlinkCapacity=inbound.get("downlink_capacity"),
+            congestion=inbound.get("congestion"),
+            readBufferSize=inbound.get("read_buffer_size"),
+            writeBufferSize=inbound.get("write_buffer_size"),
+            idle_timeout=inbound.get("idle_timeout"),
+            health_check_timeout=inbound.get("health_check_timeout"),
+            permit_without_stream=inbound.get("permit_without_stream", False),
+            initial_windows_size=inbound.get("initial_windows_size"),
         )
-
-        mux_json = json.loads(self.mux_template)
-        mux_config = mux_json["v2ray"]
-
-        if inbound.get("mux_enable", False):
-            outbound["mux"] = mux_config
+        mux_settings: dict = inbound.get("mux_settings", {})
+        if xray_mux := mux_settings.get("xray_mux_settings"):
+            xray_mux = self._remove_none_values(xray_mux)
+            outbound["mux"] = xray_mux
             outbound["mux"]["enabled"] = True
 
         self.add_config(remarks=remark, outbounds=outbounds)

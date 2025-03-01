@@ -1,23 +1,17 @@
-import copy
-import json
 from random import choice
 from uuid import UUID
-
 import yaml
-from jinja2.exceptions import TemplateNotFound
-
+from xray_api.proto.transport.internet.config_pb2 import HTTPUpgrade
+from . import BaseSubscription
 from app.subscription.funcs import get_grpc_gun
 from app.templates import render_template
 from app.utils.helpers import yml_uuid_representer
 from config import (
-    CLASH_SETTINGS_TEMPLATE,
     CLASH_SUBSCRIPTION_TEMPLATE,
-    MUX_TEMPLATE,
-    USER_AGENT_TEMPLATE,
 )
 
 
-class ClashConfiguration(object):
+class ClashConfiguration(BaseSubscription):
     def __init__(self):
         self.data = {
             "proxies": [],
@@ -25,21 +19,6 @@ class ClashConfiguration(object):
             # Some clients rely on "rules" option and will fail without it.
             "rules": [],
         }
-        self.proxy_remarks = []
-        self.mux_template = render_template(MUX_TEMPLATE)
-        user_agent_data = json.loads(render_template(USER_AGENT_TEMPLATE))
-
-        if "list" in user_agent_data and isinstance(user_agent_data["list"], list):
-            self.user_agent_list = user_agent_data["list"]
-        else:
-            self.user_agent_list = []
-
-        try:
-            self.settings = yaml.load(render_template(CLASH_SETTINGS_TEMPLATE), Loader=yaml.SafeLoader)
-        except TemplateNotFound:
-            self.settings = {}
-
-        del user_agent_data
 
     def render(self, reverse=False):
         if reverse:
@@ -61,34 +40,23 @@ class ClashConfiguration(object):
     def __repr__(self) -> str:
         return self.render()
 
-    def _remark_validation(self, remark):
-        if remark not in self.proxy_remarks:
-            return remark
-        c = 2
-        while True:
-            new = f"{remark} ({c})"
-            if new not in self.proxy_remarks:
-                return new
-            c += 1
-
     def http_config(
         self,
         path="",
         host="",
         random_user_agent: bool = False,
+        request: dict | None = None,
     ):
-        config = copy.deepcopy(self.settings.get("http-opts", {"headers": {}}))
+        config = {
+            **request,
+            "path": [path] if path else None,
+            "Host": host,
+        }
 
-        if path:
-            config["path"] = [path]
-        if host:
-            config["Host"] = host
         if random_user_agent:
-            if "headers" not in config:
-                config["headers"] = {}
             config["header"]["User-Agent"] = choice(self.user_agent_list)
 
-        return config
+        return self._remove_none_values(config)
 
     def ws_config(
         self,
@@ -98,55 +66,43 @@ class ClashConfiguration(object):
         early_data_header_name="",
         is_httpupgrade: bool = False,
         random_user_agent: bool = False,
+        http_headers: dict | None = None,
     ):
-        config = copy.deepcopy(self.settings.get("ws-opts", {}))
-        if (host or random_user_agent) and "headers" not in config:
-            config["headers"] = {}
-        if path:
-            config["path"] = path
-        if host:
-            config["headers"]["Host"] = host
+        config = {
+            "path": path,
+            "headers": {**http_headers, "Host": host} if http_headers else {"Host": host},
+            "v2ray-http-upgrade": is_httpupgrade,
+            "v2ray-http-upgrade-fast-open": is_httpupgrade,
+            "max-early-data": max_early_data if max_early_data and not HTTPUpgrade else None,
+            "early-data-header-name": early_data_header_name if max_early_data and not HTTPUpgrade else None,
+        }
         if random_user_agent:
             config["headers"]["User-Agent"] = choice(self.user_agent_list)
-        if max_early_data and not is_httpupgrade:
-            config["max-early-data"] = max_early_data
-            config["early-data-header-name"] = early_data_header_name
-        if is_httpupgrade:
-            config["v2ray-http-upgrade"] = True
-            config["v2ray-http-upgrade-fast-open"] = True
 
-        return config
+        return self._remove_none_values(config)
 
     def grpc_config(self, path=""):
-        config = copy.deepcopy(self.settings.get("grpc-opts", {}))
-        if path:
-            config["grpc-service-name"] = path
-
-        return config
+        config = {
+            "grpc-service-name": path
+        }
+        return self._remove_none_values(config)
 
     def h2_config(self, path="", host=""):
-        config = copy.deepcopy(self.settings.get("h2-opts", {}))
-        if path:
-            config["path"] = path
-        if host:
-            config["host"] = [host]
+        config = {
+            "path": path,
+            "host": [host] if host else None,
+        }
+        return self._remove_none_values(config)
 
-        return config
-
-    def tcp_config(self, path="", host=""):
-        config = copy.deepcopy(self.settings.get("tcp-opts", {}))
-        if path:
-            config["path"] = [path]
-        if host:
-            if "headers" not in config:
-                config["headers"] = {}
-            config["headers"]["Host"] = host
-
-        return config
+    def tcp_config(self, path="", host="", http_headers: dict | None = None,):
+        config = {
+            "path": [path] if path else None,
+            "headers": {**http_headers, "Host": host} if http_headers else {"Host": host},
+        }
+        return self._remove_none_values(config)
 
     def make_node(
         self,
-        name: str,
         remark: str,
         type: str,
         server: str,
@@ -160,8 +116,10 @@ class ClashConfiguration(object):
         udp: bool = True,
         alpn: str = "",
         ais: bool = "",
-        mux_enable: bool = False,
         random_user_agent: bool = False,
+        http_headers: dict | None = None,
+        mux_settings: dict | None = None,
+        request: dict | None = None,
     ):
         if network in ["grpc", "gun"]:
             path = get_grpc_gun(path)
@@ -207,6 +165,7 @@ class ClashConfiguration(object):
                 path=path,
                 host=host,
                 random_user_agent=random_user_agent,
+                request=request,
             )
 
         elif network == "ws":
@@ -217,6 +176,7 @@ class ClashConfiguration(object):
                 early_data_header_name=early_data_header_name,
                 is_httpupgrade=is_httpupgrade,
                 random_user_agent=random_user_agent,
+                http_headers=http_headers,
             )
 
         elif network == "grpc" or network == "gun":
@@ -226,18 +186,31 @@ class ClashConfiguration(object):
             net_opts = self.h2_config(path=path, host=host)
 
         elif network in ("tcp", "raw"):
-            net_opts = self.tcp_config(path=path, host=host)
+            net_opts = self.tcp_config(path=path, host=host,)
 
         else:
             net_opts = {}
 
         node[f"{network}-opts"] = net_opts
 
-        mux_json = json.loads(self.mux_template)
-        mux_config = mux_json["clash"]
-
-        if mux_enable:
-            node["smux"] = mux_config
+        mux_settings: dict = mux_settings.get("mux_settings", {})
+        if clash_mux := mux_settings.get("clash_mux_settings"):
+            clash_mux = {
+                "enabled": True,
+                "protocol": clash_mux.get("protocol"),
+                "max-connections": clash_mux.get("max_connections"),
+                "min-streams": clash_mux.get("min_streams"),
+                "max-streams": clash_mux.get("max_streams"),
+                "statistic": clash_mux.get("statistic"),
+                "only-tcp": clash_mux.get("only_tcp"),
+                "padding": clash_mux.get("padding"),
+                "brutal-opts": {
+                    "enabled": True,
+                    "up": clash_mux.get("up_mbps"),
+                    "down": clash_mux.get("down_mbps"),
+                } if clash_mux.get("brutal") else None,
+            }
+            node["smux"] = self._remove_none_values(clash_mux)
 
         return node
 
@@ -249,7 +222,6 @@ class ClashConfiguration(object):
         proxy_remark = self._remark_validation(remark)
 
         node = self.make_node(
-            name=remark,
             remark=proxy_remark,
             type=inbound["protocol"],
             server=address,
@@ -265,6 +237,9 @@ class ClashConfiguration(object):
             ais=inbound.get("ais", False),
             mux_enable=inbound.get("mux_enable", False),
             random_user_agent=inbound.get("random_user_agent"),
+            http_headers=inbound.get("http_headers"),
+            request=inbound.get("request"),
+            mux_settings=inbound.get("mux_settings", {}),
         )
 
         if inbound["protocol"] == "vmess":
@@ -306,8 +281,11 @@ class ClashMetaConfiguration(ClashConfiguration):
         pbk: str = "",
         sid: str = "",
         ais: bool = "",
-        mux_enable: bool = False,
         random_user_agent: bool = False,
+        http_headers: dict | None = None,
+        mux_settings: dict | None = None,
+        request: dict | None = None,
+
     ):
         node = super().make_node(
             name=name,
@@ -324,8 +302,10 @@ class ClashMetaConfiguration(ClashConfiguration):
             udp=udp,
             alpn=alpn,
             ais=ais,
-            mux_enable=mux_enable,
             random_user_agent=random_user_agent,
+            http_headers=http_headers,
+            request=request,
+            mux_settings=mux_settings,
         )
         if fp:
             node["client-fingerprint"] = fp
@@ -361,8 +341,10 @@ class ClashMetaConfiguration(ClashConfiguration):
             pbk=inbound.get("pbk", ""),
             sid=inbound.get("sid", ""),
             ais=inbound.get("ais", False),
-            mux_enable=inbound.get("mux_enable", False),
             random_user_agent=inbound.get("random_user_agent"),
+            http_headers=inbound.get("http_headers"),
+            request=inbound.get("request"),
+            mux_settings=inbound.get("mux_settings", {}),
         )
 
         if inbound["protocol"] == "vmess":
