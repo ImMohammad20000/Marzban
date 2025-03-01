@@ -56,11 +56,16 @@ def hosts(storage: dict):
                 #  complies with its inbound's settings.
                 "tls": None if host.security == ProxyHostSecurity.inbound_default else host.security.value,
                 "allowinsecure": host.allowinsecure,
-                "mux_enable": host.mux_enable,
-                "fragment_setting": host.fragment_setting,
-                "noise_setting": host.noise_setting,
+                "fragment_settings": host.fragment_settings,
+                "noise_settings": host.noise_settings,
                 "random_user_agent": host.random_user_agent,
                 "use_sni_as_host": host.use_sni_as_host,
+                "http_headers": host.http_headers,
+                "xhttp_settings": host.xhttp_settings,
+                "grpc_settings": host.grpc_settings,
+                "tcp_settings": host.tcp_settings,
+                "kcp_settings": host.kcp_settings,
+                "mux_settings": host.mux_settings,
             }
 
 

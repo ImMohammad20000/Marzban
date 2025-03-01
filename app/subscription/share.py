@@ -302,12 +302,21 @@ def process_inbounds_and_tags(
                 "path": path,
                 "fp": host["fingerprint"] or host_inbound.get("fp", ""),
                 "ais": host["allowinsecure"] or host_inbound.get("allowinsecure", ""),
-                "mux_enable": host["mux_enable"],
-                "fragment_setting": host["fragment_setting"],
-                "noise_setting": host["noise_setting"],
+                "fragment_settings": host["fragment_settings"],
+                "noise_settings": host["noise_settings"],
                 "random_user_agent": host["random_user_agent"],
+                "http_headers": host["http_headers"],
+                "mux_settings": host["mux_settings"],
             }
         )
+        if host["xhttp_settings"]:
+            host_inbound.update(host["xhttp_settings"])
+        if host["grpc_settings"]:
+            host_inbound.update(host["grpc_settings"])
+        if host["kcp_settings"]:
+            host_inbound.update(host["kcp_settings"])
+        if host["tcp_settings"]:
+            host_inbound.update(host["tcp_settings"])
 
         conf.add(
             remark=host["remark"].format_map(format_variables),
