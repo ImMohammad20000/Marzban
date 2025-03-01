@@ -1,7 +1,7 @@
 """add headers and transports_settings columns to hosts table
 
 Revision ID: eaa9f30f983e
-Revises: 9765715643a1
+Revises: c5c734bd3da2
 Create Date: 2025-02-26 14:20:14.371695
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = 'eaa9f30f983e'
-down_revision = '9765715643a1'
+down_revision = "c5c734bd3da2"
 branch_labels = None
 depends_on = None
 
