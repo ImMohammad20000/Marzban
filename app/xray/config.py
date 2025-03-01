@@ -259,13 +259,11 @@ class XRayConfig(dict):
                     if isinstance(host, str):
                         settings["host"] = [host]
 
-                    settings["heartbeatPeriod"] = net_settings.get("heartbeatPeriod", 0)
                 elif net == "grpc" or net == "gun":
                     settings["header_type"] = ""
                     settings["path"] = net_settings.get("serviceName", "")
                     host = net_settings.get("authority", "")
                     settings["host"] = [host]
-                    settings["multiMode"] = net_settings.get("multiMode", False)
 
                 elif net == "quic":
                     settings["header_type"] = net_settings.get("header", {}).get("type", "")
@@ -281,16 +279,8 @@ class XRayConfig(dict):
                     settings["path"] = net_settings.get("path", "")
                     host = net_settings.get("host", "")
                     settings["host"] = [host]
-                    settings["scMaxEachPostBytes"] = net_settings.get("scMaxEachPostBytes")
-                    settings["scMaxConcurrentPosts"] = net_settings.get("scMaxConcurrentPosts")
-                    settings["scMinPostsIntervalMs"] = net_settings.get("scMinPostsIntervalMs")
-                    settings["xPaddingBytes"] = net_settings.get("xPaddingBytes")
-                    settings["noGRPCHeader"] = net_settings.get("noGRPCHeader")
-                    settings["xmux"] = net_settings.get("xmux", {})
                     settings["downloadSettings"] = net_settings.get("downloadSettings", {})
                     settings["mode"] = net_settings.get("mode", "auto")
-                    settings["keepAlivePeriod"] = net_settings.get("keepAlivePeriod", 0)
-                    settings["scStreamUpServerSecs"] = net_settings.get("scStreamUpServerSecs")
 
                 elif net == "kcp":
                     header = net_settings.get("header", {})
