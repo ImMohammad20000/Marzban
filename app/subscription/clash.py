@@ -1,7 +1,6 @@
 from random import choice
 from uuid import UUID
 import yaml
-from xray_api.proto.transport.internet.config_pb2 import HTTPUpgrade
 from . import BaseSubscription
 from app.subscription.funcs import get_grpc_gun
 from app.templates import render_template
@@ -73,8 +72,8 @@ class ClashConfiguration(BaseSubscription):
             "headers": {**http_headers, "Host": host} if http_headers else {"Host": host},
             "v2ray-http-upgrade": is_httpupgrade,
             "v2ray-http-upgrade-fast-open": is_httpupgrade,
-            "max-early-data": max_early_data if max_early_data and not HTTPUpgrade else None,
-            "early-data-header-name": early_data_header_name if max_early_data and not HTTPUpgrade else None,
+            "max-early-data": max_early_data if max_early_data and not is_httpupgrade else None,
+            "early-data-header-name": early_data_header_name if max_early_data and not is_httpupgrade else None,
         }
         if random_user_agent:
             config["headers"]["User-Agent"] = choice(self.user_agent_list)
