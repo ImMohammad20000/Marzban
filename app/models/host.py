@@ -1,5 +1,4 @@
 from enum import Enum
-from types import NoneType
 from typing import Union
 from app import xray
 from app.models.proxy import ProxyTypes
