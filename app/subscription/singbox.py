@@ -9,6 +9,7 @@ from config import SINGBOX_SUBSCRIPTION_TEMPLATE
 
 class SingBoxConfiguration(BaseSubscription):
     def __init__(self):
+        super().__init__()
         self.config = json.loads(render_template(SINGBOX_SUBSCRIPTION_TEMPLATE))
 
     def add_outbound(self, outbound_data):
@@ -224,14 +225,13 @@ class SingBoxConfiguration(BaseSubscription):
                 permit_without_stream=permit_without_stream,
                 http_headers=http_headers,
                 request=request,
-                header=headers
+                headers=headers
             )
 
         if tls in ("tls", "reality"):
             config["tls"] = self.tls_config(sni=sni, fp=fp, tls=tls, pbk=pbk, sid=sid, alpn=alpn, ais=ais)
 
-        mux_settings: dict = mux_settings.get("mux_settings", {})
-        if singbox_mux := mux_settings.get("singbox_mux_settings"):
+        if mux_settings and (singbox_mux := mux_settings.get("singbox_mux_settings")):
             singbox_mux = self._remove_none_values(singbox_mux)
             config["multiplex"] = singbox_mux
             config["multiplex"]["enabled"] = True

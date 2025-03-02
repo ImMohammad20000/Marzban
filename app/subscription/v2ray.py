@@ -17,6 +17,7 @@ from config import (
 
 class V2rayShareLink(BaseSubscription):
     def __init__(self):
+        super().__init__()
         self.links = []
 
     def add_link(self, link):
@@ -69,7 +70,6 @@ class V2rayShareLink(BaseSubscription):
             mode=inbound.get("mode", ""),
             noGRPCHeader=inbound.get("no_grpc_header"),
             heartbeatPeriod=inbound.get("heartbeat_period", 0),
-            keepAlivePeriod=inbound.get("keep_alive_period", 0),
             scStreamUpServerSecs=inbound.get("sc_stream_up_server_secs"),
             xmux=inbound.get("xmux"),
             downloadSettings=inbound.get("downloadSettings"),
@@ -136,7 +136,6 @@ class V2rayShareLink(BaseSubscription):
         noGRPCHeader: bool | None = None,
         heartbeatPeriod: int | None = None,
         scStreamUpServerSecs: int | None = None,
-        keepAlivePeriod: int = 0,
         xmux: dict | None = None,
         downloadSettings: dict | None = None,
         random_user_agent: bool = False,
@@ -192,7 +191,6 @@ class V2rayShareLink(BaseSubscription):
                 "xPaddingBytes": x_padding_bytes,
                 "noGRPCHeader":  noGRPCHeader,
                 "scStreamUpServerSecs": scStreamUpServerSecs,
-                "keepAlivePeriod": keepAlivePeriod,
                 "xmux": xmux,
                 "downloadSettings": downloadSettings,
                 "headers": http_headers if http_headers is not None else {},
@@ -244,7 +242,6 @@ class V2rayShareLink(BaseSubscription):
         noGRPCHeader: bool | None = None,
         heartbeatPeriod: int | None = None,
         scStreamUpServerSecs: int | None = None,
-        keepAlivePeriod: int = 0,
         http_headers: dict | None = None,
         xmux: dict | None = None,
         random_user_agent: bool = False,
@@ -277,7 +274,6 @@ class V2rayShareLink(BaseSubscription):
                 "xPaddingBytes": x_padding_bytes,
                 "noGRPCHeader":  noGRPCHeader,
                 "scStreamUpServerSecs": scStreamUpServerSecs,
-                "keepAlivePeriod": keepAlivePeriod,
                 "xmux": xmux,
                 "downloadSettings": downloadSettings,
                 "headers": http_headers if http_headers is not None else {},
@@ -356,7 +352,6 @@ class V2rayShareLink(BaseSubscription):
         noGRPCHeader: bool | None = None,
         heartbeatPeriod: int | None = None,
         scStreamUpServerSecs: int | None = None,
-        keepAlivePeriod: int = 0,
         http_headers: dict | None = None,
         xmux: dict | None = None,
         random_user_agent: bool = False,
@@ -385,7 +380,6 @@ class V2rayShareLink(BaseSubscription):
                 "xPaddingBytes": x_padding_bytes,
                 "noGRPCHeader":  noGRPCHeader,
                 "scStreamUpServerSecs": scStreamUpServerSecs,
-                "keepAlivePeriod": keepAlivePeriod,
                 "xmux": xmux,
                 "downloadSettings": downloadSettings,
                 "headers": http_headers if http_headers is not None else {},
@@ -453,6 +447,7 @@ class V2rayShareLink(BaseSubscription):
 
 class V2rayJsonConfig(BaseSubscription):
     def __init__(self):
+        super().__init__()
         self.config = []
         self.template = render_template(V2RAY_SUBSCRIPTION_TEMPLATE)
 
@@ -536,19 +531,17 @@ class V2rayJsonConfig(BaseSubscription):
             xhttSettings["path"] = path
         if host:
             xhttSettings["host"] = host
-        if random_user_agent:
-            xhttSettings["headers"]["User-Agent"] = choice(self.user_agent_list)
-            extra = {
-                "headers": http_headers if http_headers is not None else {},
-                "scMaxEachPostBytes": sc_max_each_post_bytes,
-                "scMaxConcurrentPosts": sc_max_concurrent_posts,
-                "scMinPostsIntervalMs": sc_min_posts_interval_ms,
-                "xPaddingBytes": x_padding_bytes,
-                "noGRPCHeader":  noGRPCHeader,
-                "scStreamUpServerSecs": scStreamUpServerSecs,
-                "xmux": xmux,
-                "downloadSettings": downloadSettings,
-            }
+        extra = {
+            "headers": http_headers if http_headers is not None else {},
+            "scMaxEachPostBytes": sc_max_each_post_bytes,
+            "scMaxConcurrentPosts": sc_max_concurrent_posts,
+            "scMinPostsIntervalMs": sc_min_posts_interval_ms,
+            "xPaddingBytes": x_padding_bytes,
+            "noGRPCHeader":  noGRPCHeader,
+            "scStreamUpServerSecs": scStreamUpServerSecs,
+            "xmux": xmux,
+            "downloadSettings": downloadSettings,
+        }
         if random_user_agent:
             if mode in ("stream-one", "stream-up") and not noGRPCHeader:
                 extra["headers"]["User-Agent"] = choice(self.grpc_user_agent_data)
@@ -733,8 +726,8 @@ class V2rayJsonConfig(BaseSubscription):
 
     def make_dialer_outbound(self, fragment: dict | None = None, noises: dict | None = None) -> Union[dict, None]:
         dialer_settings = {
-            "fragment": fragment,
-            "noises": noises,
+            "fragment":  fragment.get("xray_fragment_settings") if fragment else None,
+            "noises": noises.get("xray_noise_settings") if noises else None,
         }
         dialer_settings = self._remove_none_values(dialer_settings)
 
@@ -768,7 +761,6 @@ class V2rayJsonConfig(BaseSubscription):
         noGRPCHeader: bool | None = None,
         scStreamUpServerSecs: int | None = None,
         heartbeatPeriod: int = 0,
-        keepAlivePeriod: int = 0,
         http_headers: dict | None = None,
         idle_timeout=None,
         health_check_timeout=None,
@@ -783,11 +775,10 @@ class V2rayJsonConfig(BaseSubscription):
         congestion=False,
         readBufferSize=None,
         writeBufferSize=None,
-        early_data: int | None = None,
     ) -> dict:
         if net == "ws":
             network_setting = self.ws_config(
-                path=path, host=host, random_user_agent=random_user_agent, heartbeatPeriod=heartbeatPeriod, http_headers=http_headers, early_data=early_data
+                path=path, host=host, random_user_agent=random_user_agent, heartbeatPeriod=heartbeatPeriod, http_headers=http_headers
             )
         elif net == "grpc":
             network_setting = self.grpc_config(
@@ -832,7 +823,6 @@ class V2rayJsonConfig(BaseSubscription):
                 downloadSettings=downloadSettings,
                 mode=mode,
                 noGRPCHeader=noGRPCHeader,
-                keepAlivePeriod=keepAlivePeriod,
                 scStreamUpServerSecs=scStreamUpServerSecs,
                 http_headers=http_headers
             )
@@ -899,8 +889,7 @@ class V2rayJsonConfig(BaseSubscription):
 
         outbounds = [outbound]
         dialer_proxy = ""
-        extra_outbound = self.make_dialer_outbound(fragment.get(
-            "xray_fragment_settings"), noise.get("xray_noise_settings"))
+        extra_outbound = self.make_dialer_outbound(fragment, noise)
         if extra_outbound:
             dialer_proxy = extra_outbound["tag"]
             outbounds.append(extra_outbound)
@@ -927,11 +916,10 @@ class V2rayJsonConfig(BaseSubscription):
             sc_min_posts_interval_ms=inbound.get("sc_min_posts_interval_ms"),
             x_padding_bytes=inbound.get("x_padding_bytes"),
             xmux=inbound.get("xmux", {}),
-            downloadSettings=inbound.get("downloadSettings", {}),
+            downloadSettings=inbound.get("downloadSettings"),
             mode=inbound.get("mode", "auto"),
             noGRPCHeader=inbound.get("no_grpc_header"),
-            heartbeatPeriod=inbound.get("heartbeat_period", 0),
-            keepAlivePeriod=inbound.get("keep_alive_period", 0),
+            heartbeatPeriod=inbound.get("heartbeat_period"),
             scStreamUpServerSecs=inbound.get("sc_stream_up_server_secs"),
             http_headers=inbound.get("http_headers"),
             request=inbound.get("request"),
@@ -949,7 +937,7 @@ class V2rayJsonConfig(BaseSubscription):
             initial_windows_size=inbound.get("initial_windows_size"),
         )
         mux_settings: dict = inbound.get("mux_settings", {})
-        if xray_mux := mux_settings.get("xray_mux_settings"):
+        if mux_settings and (xray_mux := mux_settings.get("xray_mux_settings")):
             xray_mux = self._remove_none_values(xray_mux)
             outbound["mux"] = xray_mux
             outbound["mux"]["enabled"] = True

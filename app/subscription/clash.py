@@ -12,6 +12,7 @@ from config import (
 
 class ClashConfiguration(BaseSubscription):
     def __init__(self):
+        super().__init__()
         self.data = {
             "proxies": [],
             "proxy-groups": [],
@@ -192,8 +193,7 @@ class ClashConfiguration(BaseSubscription):
 
         node[f"{network}-opts"] = net_opts
 
-        mux_settings: dict = mux_settings.get("mux_settings", {})
-        if clash_mux := mux_settings.get("clash_mux_settings"):
+        if mux_settings and (clash_mux := mux_settings.get("clash_mux_settings")):
             clash_mux = {
                 "enabled": True,
                 "protocol": clash_mux.get("protocol"),
@@ -205,8 +205,8 @@ class ClashConfiguration(BaseSubscription):
                 "padding": clash_mux.get("padding"),
                 "brutal-opts": {
                     "enabled": True,
-                    "up": clash_mux.get("up_mbps"),
-                    "down": clash_mux.get("down_mbps"),
+                    "up": clash_mux["brutal"]["up_mbps"],
+                    "down": clash_mux["brutal"]["down_mbps"],
                 } if clash_mux.get("brutal") else None,
             }
             node["smux"] = self._remove_none_values(clash_mux)
@@ -234,7 +234,6 @@ class ClashConfiguration(BaseSubscription):
             udp=True,
             alpn=inbound.get("alpn", ""),
             ais=inbound.get("ais", False),
-            mux_enable=inbound.get("mux_enable", False),
             random_user_agent=inbound.get("random_user_agent"),
             http_headers=inbound.get("http_headers"),
             request=inbound.get("request"),
@@ -263,7 +262,6 @@ class ClashConfiguration(BaseSubscription):
 class ClashMetaConfiguration(ClashConfiguration):
     def make_node(
         self,
-        name: str,
         remark: str,
         type: str,
         server: str,
@@ -287,7 +285,6 @@ class ClashMetaConfiguration(ClashConfiguration):
 
     ):
         node = super().make_node(
-            name=name,
             remark=remark,
             type=type,
             server=server,
