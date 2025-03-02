@@ -67,7 +67,7 @@ class FragmentSettings(BaseModel):
 class XrayNoiseSettings(BaseModel):
     type: str = Field(pattern=r"^(:?rand|str|base64|hex)$")
     packet: str
-    delay: str | int = Field(pattern=r"^\d{1,16}(-\d{1,16})?$")
+    delay: str = Field(pattern=r"^\d{1,16}(-\d{1,16})?$")
 
 
 class NoiseSettings(BaseModel):
@@ -86,17 +86,17 @@ class XMuxSettings(BaseModel):
     )
     c_max_lifetime: str | int | None = Field(None, pattern=r"^\d{1,16}(-\d{1,16})?$")
     h_max_request_times: str | int | None = Field(None, pattern=r"^\d{1,16}(-\d{1,16})?$")
-    h_keep_alive_period: int | int | None = Field(None, pattern=r"^\d{1,16}(-\d{1,16})?$")
+    h_keep_alive_period: str | int | None = Field(None, pattern=r"^\d{1,16}(-\d{1,16})?$")
 
 
 class XHttpSettings(BaseModel):
     mode: XHttpModes = XHttpModes.auto
     no_grpc_header: bool | None = None
-    x_padding_bytes: str | int | None = None
-    sc_max_each_post_bytes: str | int | None = None
-    sc_min_posts_interval_ms: str | int | None = None
-    sc_max_buffered_posts: str | int | None = None
-    sc_stream_up_server_secs: str | int | None = None
+    x_padding_bytes: str | int | None = Field(None, pattern=r"^\d{1,16}(-\d{1,16})?$")
+    sc_max_each_post_bytes: str | int | None = Field(None, pattern=r"^\d{1,16}(-\d{1,16})?$")
+    sc_min_posts_interval_ms: str | int | None = Field(None, pattern=r"^\d{1,16}(-\d{1,16})?$")
+    sc_max_buffered_posts: str | int | None = Field(None, pattern=r"^\d{1,16}(-\d{1,16})?$")
+    sc_stream_up_server_secs: str | int | None = Field(None, pattern=r"^\d{1,16}(-\d{1,16})?$")
     xmux: XMuxSettings | None = None
 
 
