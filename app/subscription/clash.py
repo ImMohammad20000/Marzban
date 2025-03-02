@@ -193,7 +193,7 @@ class ClashConfiguration(BaseSubscription):
 
         node[f"{network}-opts"] = net_opts
 
-        if mux_settings and (clash_mux := mux_settings.get("clash_mux_settings")):
+        if mux_settings and (clash_mux := mux_settings.get("clash")):
             clash_mux = {
                 "enabled": True,
                 "protocol": clash_mux.get("protocol"),

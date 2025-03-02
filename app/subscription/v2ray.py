@@ -726,8 +726,8 @@ class V2rayJsonConfig(BaseSubscription):
 
     def make_dialer_outbound(self, fragment: dict | None = None, noises: dict | None = None) -> Union[dict, None]:
         dialer_settings = {
-            "fragment":  fragment.get("xray_fragment_settings") if fragment else None,
-            "noises": noises.get("xray_noise_settings") if noises else None,
+            "fragment":  fragment.get("xray") if fragment else None,
+            "noises": noises.get("xray") if noises else None,
         }
         dialer_settings = self._remove_none_values(dialer_settings)
 
@@ -809,7 +809,7 @@ class V2rayJsonConfig(BaseSubscription):
             network_setting = self.quic_config(path=path, host=host, header=headers)
         elif net == "httpupgrade":
             network_setting = self.httpupgrade_config(
-                path=path, host=host, random_user_agent=random_user_agent, http_headers=http_headers, early_data=early_data)
+                path=path, host=host, random_user_agent=random_user_agent, http_headers=http_headers)
         elif net in ("splithttp", "xhttp"):
             network_setting = self.xhttp_config(
                 path=path,
@@ -937,7 +937,7 @@ class V2rayJsonConfig(BaseSubscription):
             initial_windows_size=inbound.get("initial_windows_size"),
         )
         mux_settings: dict = inbound.get("mux_settings", {})
-        if mux_settings and (xray_mux := mux_settings.get("xray_mux_settings")):
+        if mux_settings and (xray_mux := mux_settings.get("xray")):
             xray_mux = self._remove_none_values(xray_mux)
             outbound["mux"] = xray_mux
             outbound["mux"]["enabled"] = True

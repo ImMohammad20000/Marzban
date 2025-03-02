@@ -231,7 +231,7 @@ class SingBoxConfiguration(BaseSubscription):
         if tls in ("tls", "reality"):
             config["tls"] = self.tls_config(sni=sni, fp=fp, tls=tls, pbk=pbk, sid=sid, alpn=alpn, ais=ais)
 
-        if mux_settings and (singbox_mux := mux_settings.get("singbox_mux_settings")):
+        if mux_settings and (singbox_mux := mux_settings.get("sing_box")):
             singbox_mux = self._remove_none_values(singbox_mux)
             config["multiplex"] = singbox_mux
             config["multiplex"]["enabled"] = True

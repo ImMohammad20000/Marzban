@@ -61,7 +61,7 @@ class XrayFragmentSettings(BaseModel):
 
 
 class FragmentSettings(BaseModel):
-    xray_fragment_settings: XrayFragmentSettings | None = None
+    xray: XrayFragmentSettings | None = None
 
 
 class XrayNoiseSettings(BaseModel):
@@ -71,7 +71,7 @@ class XrayNoiseSettings(BaseModel):
 
 
 class NoiseSettings(BaseModel):
-    xray_noise_settings: list[XrayNoiseSettings] | None = None
+    xray: list[XrayNoiseSettings] | None = None
 
 
 class XMuxSettings(BaseModel):
@@ -169,9 +169,9 @@ class XrayMuxSettings(BaseModel):
 
 
 class MuxSettings(BaseModel):
-    sing_box_mux_settings: SingBoxMuxSettings | None = None
-    clah_mux_settings: ClashMuxSettings | None = None
-    xray_mux_settings: XrayMuxSettings | None = None
+    sing_box: SingBoxMuxSettings | None = None
+    clash: ClashMuxSettings | None = None
+    xray: XrayMuxSettings | None = None
 
 
 class TransportSettings(BaseModel):
