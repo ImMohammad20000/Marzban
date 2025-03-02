@@ -29,15 +29,16 @@ def upgrade() -> None:
             noises_settings_json = sa.null()
             if fragment:
                 length, interval, packets = fragment.split(",")
-                fragment_json = {"packets": packets, "length": length, "interval": interval}
+                fragment_json = {"xray_fragment_settings": {"packets": packets, "length": length, "interval": interval}}
             if noises:
                 sn = noises.split("&")
-                noises_settings_json = []
+                noises_settings_json = {"xray_noise_settings": []}
                 for n in sn:
                     try:
                         tp, delay = n.split(",")
                         _type, packet = tp.split(":")
-                        noises_settings_json.append({"type": _type, "packet": packet, "delay": delay})
+                        noises_settings_json['xray_noise_settings'].append(
+                            {"type": _type, "packet": packet, "delay": delay})
                     except ValueError:
                         pass
 

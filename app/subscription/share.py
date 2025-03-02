@@ -309,14 +309,10 @@ def process_inbounds_and_tags(
                 "mux_settings": host["mux_settings"],
             }
         )
-        if host["xhttp_settings"]:
-            host_inbound.update(host["xhttp_settings"])
-        if host["grpc_settings"]:
-            host_inbound.update(host["grpc_settings"])
-        if host["kcp_settings"]:
-            host_inbound.update(host["kcp_settings"])
-        if host["tcp_settings"]:
-            host_inbound.update(host["tcp_settings"])
+        if ts := host["transport_settings"]:
+            for _, v in ts.items():
+                if v:
+                    host_inbound.update(v)
 
         conf.add(
             remark=host["remark"].format_map(format_variables),

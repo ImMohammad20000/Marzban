@@ -899,7 +899,8 @@ class V2rayJsonConfig(BaseSubscription):
 
         outbounds = [outbound]
         dialer_proxy = ""
-        extra_outbound = self.make_dialer_outbound(fragment, noise)
+        extra_outbound = self.make_dialer_outbound(fragment.get(
+            "xray_fragment_settings"), noise.get("xray_noise_settings"))
         if extra_outbound:
             dialer_proxy = extra_outbound["tag"]
             outbounds.append(extra_outbound)

@@ -252,13 +252,8 @@ class ProxyHost(Base):
     use_sni_as_host = Column(Boolean, nullable=False, default=False, server_default="0")
     priority = Column(Integer, nullable=False)
     http_headers = Column(JSON(none_as_null=True), nullable=True, default=None)
-    xhttp_settings = Column(JSON(none_as_null=True), nullable=True, default=None)
-    grpc_settings = Column(JSON(none_as_null=True), nullable=True, default=None)
-    kcp_settings = Column(JSON(none_as_null=True), nullable=True, default=None)
-    tcp_settings = Column(JSON(none_as_null=True), nullable=True, default=None)
-    websocket_settings = Column(JSON(none_as_null=True), nullable=True, default=None)
+    transport_settings   = Column(JSON(none_as_null=True), nullable=True, default=None)
     mux_settings = Column(JSON(none_as_null=True), nullable=True, default=None)
-
 
 class System(Base):
     __tablename__ = "system"

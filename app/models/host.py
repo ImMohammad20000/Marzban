@@ -54,16 +54,24 @@ class MultiplexProtocol(str, Enum):
     h2mux = "h2mux"
 
 
-class FragmentSettings(BaseModel):
+class XrayFragmentSettings(BaseModel):
     packets: str = Field(pattern=r"^(:?tlshello|[\d-]{1,16})$")
     length: str = Field(pattern=r"^[\d-]{1,16}$")
     interval: str = Field(pattern=r"^[\d-]{1,16}$")
 
 
-class NoiseSettings(BaseModel):
+class FragmentSettings(BaseModel):
+    xray_fragment_settings: XrayFragmentSettings | None = None
+
+
+class XrayNoiseSettings(BaseModel):
     type: str = Field(pattern=r"^(:?rand|str|base64|hex)$")
     packet: str
     delay: str | int = Field(pattern=r"^\d{1,16}(-\d{1,16})?$")
+
+
+class NoiseSettings(BaseModel):
+    xray_noise_settings: list[XrayNoiseSettings] | None = None
 
 
 class XMuxSettings(BaseModel):
@@ -166,6 +174,14 @@ class MuxSettings(BaseModel):
     xray_mux_settings: XrayMuxSettings | None = None
 
 
+class TransportSettings(BaseModel):
+    xhttp_settings: XHttpSettings | None = None
+    grpc_settings: GRPCSettings | None = None
+    kcp_settings: KCPSettings | None = None
+    tcp_settings: TcpSettings | None = None
+    websocket_settings: WebSocketSettings | None = None
+
+
 class FormatVariables(dict):
     def __missing__(self, key):
         return key.join("{}")
@@ -186,14 +202,10 @@ class BaseHost(BaseModel):
     allowinsecure: bool | None = None
     is_disabled: bool | None = None
     http_headers: dict[str, str] | None = None
-    xhttp_settings: XHttpSettings | None = None
-    grpc_settings: GRPCSettings | None = None
-    kcp_settings: KCPSettings | None = None
-    tcp_settings: TcpSettings | None = None
-    websocket_settings: WebSocketSettings | None = None
+    transport_settings: TransportSettings | None = None
     mux_settings: MuxSettings | None = None
     fragment_settings: FragmentSettings | None = None
-    noise_settings: list[NoiseSettings] | None = None
+    noise_settings: NoiseSettings | None = None
     random_user_agent: bool | None = None
     use_sni_as_host: bool | None = None
     priority: int
@@ -224,17 +236,6 @@ class CreateHost(BaseHost):
         except ValueError:
             raise ValueError("Invalid formatting variables")
 
-        return v
-
-    @field_validator("tcp_settings", "xhttp_settings", "grpc_settings", "kcp_settings", "websocket_settings", mode="after")
-    @classmethod
-    def check_exclusive_fields(cls, v, values):
-        transport_settings = ("xhttp_settings", "grpc_settings", "kcp_settings", "websocket_settings", "tcp_settings")
-        filled_fields = sum(1 for transport in transport_settings if values.get(transport) is not None)
-        if filled_fields > 1:
-            raise ValueError(
-                "Only one of 'tcp_settings', 'xhttp_settings', 'grpc_settings', 'kcp_settings' or 'websocket_settings' can be set. Please provide a value for only one field."
-            )
         return v
 
 
