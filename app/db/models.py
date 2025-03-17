@@ -110,7 +110,7 @@ class User(Base):
     last_status_change = Column(DateTime, default=datetime.utcnow, nullable=True)
 
     next_plan = relationship("NextPlan", uselist=False, back_populates="user", cascade="all, delete-orphan")
-    groups = relationship("Group",secondary=users_groups_association,back_populates="users",lazy="joined")
+    groups = relationship("Group", secondary=users_groups_association, back_populates="users", lazy="joined")
 
     @hybrid_property
     def reseted_usage(self) -> int:
@@ -145,6 +145,15 @@ class User(Base):
             if not _[proxy_type]:
                 del _[proxy_type]
         return _
+
+    @property
+    def group_ids(self):
+        return [group.id for group in self.groups]
+
+    @property
+    def group_names(self):
+        return [group.name for group in self.groups]
+
 
 template_group_association = Table(
     "template_group_association",
@@ -181,8 +190,15 @@ class UserTemplate(Base):
 
     next_plans = relationship("NextPlan", back_populates="user_template", cascade="all, delete-orphan")
     groups = relationship(
-        "Group", secondary=template_group_association, back_populates="templates",
+        "Group",
+        secondary=template_group_association,
+        back_populates="templates",
     )
+
+    @property
+    def group_ids(self):
+        return [group.id for group in self.groups]
+
 
 class UserUsageResetLogs(Base):
     __tablename__ = "user_usage_logs"
@@ -201,6 +217,7 @@ class ProxyInbound(Base):
     tag = Column(String(256), unique=True, nullable=False, index=True)
     hosts = relationship("ProxyHost", back_populates="inbound", cascade="all, delete-orphan")
     groups = relationship("Group", secondary=inbounds_groups_association, back_populates="inbounds")
+
 
 class ProxyHost(Base):
     __tablename__ = "hosts"
@@ -353,23 +370,26 @@ class NotificationReminder(Base):
     expires_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+
 class Group(Base):
     __tablename__ = "groups"
 
     id = Column(Integer, primary_key=True)
     name = Column(String(64))
-    is_disabled = Column(Boolean, nullable=False, server_default='0', default=False)
+    is_disabled = Column(Boolean, nullable=False, server_default="0", default=False)
 
-    users = relationship(
-        "User", secondary=users_groups_association, back_populates="groups"
-    )
-    inbounds = relationship(
-        "ProxyInbound", secondary=inbounds_groups_association, back_populates="groups"
-    )
-    templates = relationship(
-        "UserTemplate", secondary=template_group_association, back_populates="groups"
-    )
+    users = relationship("User", secondary=users_groups_association, back_populates="groups")
+    inbounds = relationship("ProxyInbound", secondary=inbounds_groups_association, back_populates="groups")
+    templates = relationship("UserTemplate", secondary=template_group_association, back_populates="groups")
 
     @property
     def inbound_ids(self):
         return [inbound.id for inbound in self.inbounds]
+
+    @property
+    def inbound_tags(self):
+        return [inbound.tag for inbound in self.inbounds]
+
+    @property
+    def total_users(self):
+        return len(self.users)
