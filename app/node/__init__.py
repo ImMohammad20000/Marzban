@@ -5,8 +5,9 @@ from GozargahNodeBridge import GozargahNode, create_node, Health, NodeType
 from aiorwlock import RWLock
 
 from app.db import GetDB, get_tls_certificate
-from app.db.models import Node, NodeConnectionType, User
+from app.db.models import Node, NodeConnectionType
 from app.node.user import serialize_user_for_node, backend_users
+from app.models.user import UserResponse
 
 
 @lru_cache(maxsize=None)
@@ -96,15 +97,15 @@ class NodeManager:
             ]
             return nodes
 
-    async def update_user(self, user: User, inbounds: list[str] = None):
-        proto_user = serialize_user_for_node(user=user, inbounds=inbounds)
+    async def update_user(self, user: UserResponse, inbounds: list[str] = None):
+        proto_user = serialize_user_for_node(user.id, user.username, user.proxy_settings, inbounds)
 
         async with self._lock.reader_lock:
             add_tasks = [node.update_user(proto_user) for node in self._nodes.values()]
             await asyncio.gather(*add_tasks, return_exceptions=True)
 
-    async def remove_user(self, user: User):
-        proto_user = serialize_user_for_node(user=user)
+    async def remove_user(self, user: UserResponse):
+        proto_user = serialize_user_for_node(user.id, user.username, user.proxy_settings)
 
         async with self._lock.reader_lock:
             remove_tasks = [node.update_user(proto_user) for node in self._nodes.values()]

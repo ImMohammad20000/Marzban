@@ -1,3 +1,5 @@
+import asyncio
+
 from sqlalchemy.exc import IntegrityError
 
 from app.dependencies import get_validated_group
@@ -65,7 +67,7 @@ class UserOperator(BaseOperator):
 
         user = UserResponse.model_validate(db_user)
 
-        await node_manager.update_user(db_user, inbounds=config.inbounds)
+        asyncio.create_task(node_manager.update_user(user, inbounds=config.inbounds))
 
         logger.info(f'New user "{db_user.username}" with id "{db_user.id}" added by admin "{admin.username}"')
 
@@ -97,7 +99,7 @@ class UserOperator(BaseOperator):
         db_user: User = self.get_validated_user(db, username, admin)
 
         remove_user(db, db_user)
-        await node_manager.remove_user(db_user)
+        asyncio.create_task(node_manager.remove_user(UserResponse.model_validate(db_user)))
 
         logger.info(f'User "{db_user.username}" with id "{db_user.id}" deleted by admin "{admin.username}"')
         return {}
