@@ -4,7 +4,7 @@ from app.operation import BaseOperator
 from app.db import Session
 from app.models.user import UserResponse, UserCreate, UserModify, UserStatus
 from app.models.admin import Admin
-from app.db.models import User, Proxy, NextPlan
+from app.db.models import User,  NextPlan
 from app.db.crud import (
     get_user,
     create_user,
