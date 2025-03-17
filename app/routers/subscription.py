@@ -45,19 +45,19 @@ def detect_client_config(user_agent: str) -> dict:
     # Clash Meta, FLClash, Mihomo
     if re.match(r"^([Cc]lash-verge|[Cc]lash[-\.]?[Mm]eta|[Ff][Ll][Cc]lash|[Mm]ihomo)", user_agent):
         return client_config["clash-meta"]
-    
+
     # Clash, Stash
     elif re.match(r"^([Cc]lash|[Ss]tash)", user_agent):
         return client_config["clash"]
-    
+
     # Sing-box clients
     elif re.match(r"^(SFA|SFI|SFM|SFT|[Kk]aring|[Hh]iddify[Nn]ext)", user_agent):
         return client_config["sing-box"]
-    
+
     # Shadowsocks clients
     elif re.match(r"^(SS|SSR|SSD|SSS|Outline|Shadowsocks|SSconf)", user_agent):
         return client_config["outline"]
-    
+
     # v2rayN
     elif (USE_CUSTOM_JSON_DEFAULT or USE_CUSTOM_JSON_FOR_V2RAYN) and re.match(r"^v2rayN/(\d+\.\d+)", user_agent):
         version_str = re.match(r"^v2rayN/(\d+\.\d+)", user_agent).group(1)
@@ -65,7 +65,7 @@ def detect_client_config(user_agent: str) -> dict:
             return client_config["v2ray-json"]
         else:
             return client_config["v2ray"]
-    
+
     # v2rayNG
     elif (USE_CUSTOM_JSON_DEFAULT or USE_CUSTOM_JSON_FOR_V2RAYNG) and re.match(r"^v2rayNG/(\d+\.\d+\.\d+)", user_agent):
         version_str = re.match(r"^v2rayNG/(\d+\.\d+\.\d+)", user_agent).group(1)
@@ -75,14 +75,14 @@ def detect_client_config(user_agent: str) -> dict:
             return {**client_config["v2ray-json"], "reverse": True}
         else:
             return client_config["v2ray"]
-    
+
     # Streisand
     elif re.match(r"^[Ss]treisand", user_agent):
         if USE_CUSTOM_JSON_DEFAULT or USE_CUSTOM_JSON_FOR_STREISAND:
             return client_config["v2ray-json"]
         else:
             return client_config["v2ray"]
-    
+
     # Happ
     elif (USE_CUSTOM_JSON_DEFAULT or USE_CUSTOM_JSON_FOR_HAPP) and re.match(r"^Happ/(\d+\.\d+\.\d+)", user_agent):
         version_str = re.match(r"^Happ/(\d+\.\d+\.\d+)", user_agent).group(1)
@@ -90,14 +90,14 @@ def detect_client_config(user_agent: str) -> dict:
             return client_config["v2ray-json"]
         else:
             return client_config["v2ray"]
-    
+
     # NPVTunnel
     elif USE_CUSTOM_JSON_DEFAULT or USE_CUSTOM_JSON_FOR_NPVTUNNEL:
         if "ktor-client" in user_agent:
             return client_config["v2ray-json"]
         else:
             return client_config["v2ray"]
-    
+
     # Default to v2ray
     else:
         return client_config["v2ray"]
@@ -112,7 +112,7 @@ def create_response_headers(user: UserResponse, request: Request) -> dict:
         "total": user.data_limit if user.data_limit is not None else 0,
         "expire": user.expire if user.expire is not None else 0,
     }
-    
+
     # Create and return headers
     return {
         "content-disposition": f'attachment; filename="{user.username}"',
@@ -146,18 +146,15 @@ async def user_subscription(
 
     # Update user subscription info
     crud.update_user_sub(db, dbuser, user_agent)
-    
+
     # Get appropriate client configuration based on user agent
     config = detect_client_config(user_agent)
-    
+
     # Generate subscription content
     conf = generate_subscription(
-        user=user, 
-        config_format=config["config_format"], 
-        as_base64=config["as_base64"], 
-        reverse=config["reverse"]
+        user=user, config_format=config["config_format"], as_base64=config["as_base64"], reverse=config["reverse"]
     )
-    
+
     # Create response with appropriate headers
     response_headers = create_response_headers(user, request)
     return Response(content=conf, media_type=config["media_type"], headers=response_headers)
@@ -199,13 +196,10 @@ async def user_subscription_with_client_type(
 
     # Get client configuration
     config = client_config.get(client_type)
-    
+
     # Generate subscription content
     conf = generate_subscription(
-        user=user, 
-        config_format=config["config_format"], 
-        as_base64=config["as_base64"], 
-        reverse=config["reverse"]
+        user=user, config_format=config["config_format"], as_base64=config["as_base64"], reverse=config["reverse"]
     )
 
     return Response(content=conf, media_type=config["media_type"], headers=response_headers)

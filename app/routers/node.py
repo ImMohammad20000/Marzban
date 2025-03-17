@@ -33,10 +33,10 @@ async def get_node_settings(_: Admin = Depends(Admin.check_sudo_admin)):
 async def add_node(
     new_node: NodeCreate,
     db: Session = Depends(get_db),
-    _: Admin = Depends(Admin.check_sudo_admin),
+    admin: Admin = Depends(Admin.check_sudo_admin),
 ):
     """Add a new node to the database."""
-    return await node_operator.add_node(db, new_node)
+    return await node_operator.add_node(db, new_node, admin)
 
 
 @router.get("/{node_id}", response_model=NodeResponse)
@@ -95,19 +95,19 @@ async def modify_node(
     modified_node: NodeModify,
     node_id: int,
     db: Session = Depends(get_db),
-    _: Admin = Depends(Admin.check_sudo_admin),
+    admin: Admin = Depends(Admin.check_sudo_admin),
 ):
     """Update a node's details. Only accessible to sudo admins."""
-    return await node_operator.modify_node(db, node_id=node_id, modified_node=modified_node)
+    return await node_operator.modify_node(db, node_id=node_id, modified_node=modified_node, admin=admin)
 
 
 @router.post("/{node_id}/reconnect")
 async def reconnect_node(
     node_id: int,
-    _: Admin = Depends(Admin.check_sudo_admin),
+    admin: Admin = Depends(Admin.check_sudo_admin),
 ):
     """Trigger a reconnection for the specified node. Only accessible to sudo admins."""
-    await node_operator.restart_node(node_id=node_id)
+    await node_operator.restart_node(node_id=node_id, admin=admin)
     return {}
 
 
@@ -115,10 +115,10 @@ async def reconnect_node(
 async def remove_node(
     node_id: int,
     db: Session = Depends(get_db),
-    _: Admin = Depends(Admin.check_sudo_admin),
+    admin: Admin = Depends(Admin.check_sudo_admin),
 ):
     """Delete a node and remove it from xray in the background."""
-    await node_operator.remove_node(db=db, node_id=node_id)
+    await node_operator.remove_node(db=db, node_id=node_id, admin=admin)
     return {}
 
 

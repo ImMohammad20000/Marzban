@@ -4,7 +4,6 @@ from typing import Optional, Union
 from fastapi import Depends, HTTPException
 
 from app.db import Session, crud, get_db
-from app.db.models import ProxyHost
 from app.models.admin import Admin, AdminInDB, AdminValidationResult
 from app.models.group import Group
 from app.models.user import UserResponse, UserStatus
@@ -33,14 +32,6 @@ def get_admin_by_username(username: str, db: Session = Depends(get_db)):
     if not dbadmin:
         raise HTTPException(status_code=404, detail="Admin not found")
     return dbadmin
-
-
-def get_dbnode(node_id: int, db: Session = Depends(get_db)):
-    """Fetch a node by its ID from the database, raising a 404 error if not found."""
-    dbnode = crud.get_node_by_id(db, node_id)
-    if not dbnode:
-        raise HTTPException(status_code=404, detail="Node not found")
-    return dbnode
 
 
 def validate_dates(
@@ -109,14 +100,6 @@ def get_expired_users_list(db: Session, admin: Admin, expired_after: datetime = 
     )
 
     return [u for u in dbusers if u.expire and expired_after <= u.expire <= expired_before]
-
-
-def get_host(host_id: int, db: Session = Depends(get_db)) -> ProxyHost:
-    """Fetch a Proxy Host by its ID, raise 404 if not found."""
-    db_host = crud.get_host_by_id(db, host_id)
-    if not db_host:
-        raise HTTPException(status_code=404, detail="Host not found")
-    return db_host
 
 
 def get_v2ray_links(user: UserResponse) -> list:

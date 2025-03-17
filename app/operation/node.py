@@ -6,6 +6,7 @@ from GozargahNodeBridge import GozargahNode, NodeAPIError
 
 from app.operation import BaseOperator
 from app.models.node import NodeCreate, NodeResponse, NodeSettings, NodesUsageResponse, NodeModify, NodeStats
+from app.models.admin import Admin
 from app.db.models import Node, NodeStatus
 from app.db.crud import (
     create_node,
@@ -15,7 +16,7 @@ from app.db.crud import (
     remove_node,
     get_nodes_usage,
     update_node,
-    get_user
+    get_user,
 )
 from app.db.base import GetDB
 from app.backend import config
@@ -87,7 +88,7 @@ class NodeOperator(BaseOperator):
                     message=e.detail,
                 )
 
-    async def add_node(self, db: Session, new_node: NodeCreate) -> NodeResponse:
+    async def add_node(self, db: Session, new_node: NodeCreate, admin: Admin) -> NodeResponse:
         try:
             db_node = create_node(
                 db,
@@ -105,11 +106,11 @@ class NodeOperator(BaseOperator):
 
         asyncio.create_task(self.connect_node(node_id=db_node.id))
 
-        logger.info(f'New node "{db_node.name}" with id "{db_node.id}" added')
+        logger.info(f'New node "{db_node.name}" with id "{db_node.id}" added by admin "{admin.username}"')
 
         return NodeResponse.model_validate(db_node)
 
-    async def modify_node(self, db: Session, node_id: Node, modified_node: NodeModify) -> NodeResponse:
+    async def modify_node(self, db: Session, node_id: Node, modified_node: NodeModify, admin: Admin) -> NodeResponse:
         db_node: Node = await self.get_node(db=db, node_id=node_id)
 
         node_data = modified_node.model_dump(
@@ -134,24 +135,26 @@ class NodeOperator(BaseOperator):
             await node_manager.update_node(db_node)
             asyncio.create_task(self.connect_node(node_id=db_node.id))
 
-        logger.info(f'Node "{db_node.name}" with id "{db_node.id}" modified')
+        logger.info(f'Node "{db_node.name}" with id "{db_node.id}" modified by admin "{admin.username}"')
 
         return NodeResponse.model_validate(updated_node)
 
-    async def remove_node(self, db: Session, node_id: Node) -> None:
+    async def remove_node(self, db: Session, node_id: Node, admin: Admin) -> None:
         db_node: Node = await self.get_node(db=db, node_id=node_id)
 
         await node_manager.remove_node(db_node.id)
         remove_node(db=db, db_node=db_node)
 
-        logger.info(f'Node "{db_node.name}" with id "{db_node.id}" deleted')
+        logger.info(f'Node "{db_node.name}" with id "{db_node.id}" deleted by admin "{admin.username}"')
 
-    async def restart_node(self, node_id: Node) -> None:
+    async def restart_node(self, node_id: Node, admin: Admin) -> None:
         asyncio.create_task(self.connect_node(node_id))
+        logger.info(f'Node "{node_id}" restarted by admin "{admin.username}"')
 
-    async def restart_all_node(self, db: Session) -> None:
+    async def restart_all_node(self, db: Session, admin: Admin) -> None:
         for db_node in get_nodes(db=db, enabled=True):
             await asyncio.create_task(self.connect_node(db_node.id))
+        logger.info(f'All Node\'s restarted by admin "{admin.username}"')
 
     async def get_usage(self, db: Session, start: str = "", end: str = "") -> NodesUsageResponse:
         start, end = self.validate_dates(start, end)

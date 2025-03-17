@@ -30,7 +30,6 @@ from app.db.models import (
 )
 from app.models.admin import AdminCreate, AdminModify, AdminPartialModify
 from app.models.group import Group, GroupCreate, GroupModify
-from app.models.host import CreateHost as ProxyHostModify
 from app.models.node import NodeUsageResponse
 from app.models.user import (
     ReminderType,
@@ -95,7 +94,7 @@ def get_hosts(
     offset: Optional[int] = 0,
     limit: Optional[int] = 0,
     sort: ProxyHostSortingOptions = "priority",
-) -> List[ProxyHost]:
+) -> list[ProxyHost]:
     """
     Retrieves hosts.
 
@@ -134,7 +133,7 @@ def get_host_by_id(db: Session, id: int) -> ProxyHost:
     return db.query(ProxyHost).filter(ProxyHost.id == id).first()
 
 
-def add_host(db: Session, host: ProxyHostModify) -> ProxyHost:
+def add_host(db: Session, db_host: ProxyHost) -> ProxyHost:
     """
     Creates a proxy Host based on the host.
 
@@ -145,57 +144,10 @@ def add_host(db: Session, host: ProxyHostModify) -> ProxyHost:
     Returns:
         ProxyHost: The retrieved or newly created proxy host.
     """
-    inbound = get_or_create_inbound(db, host.inbound_tag)
-    host_data = host.model_dump(exclude={"inbound_tag", "id"})
-
-    db_host = ProxyHost(inbound=inbound, **host_data)
     db.add(db_host)
     db.commit()
     db.refresh(db_host)
     return db_host
-
-
-def update_host(db: Session, db_host: ProxyHost, modified_host: ProxyHostModify):
-    """Update existing ProxyHost with optimized data handling."""
-    # Check if inbound needs update
-    if db_host.inbound_tag != modified_host.inbound_tag:
-        db_host.inbound = get_or_create_inbound(db, modified_host.inbound_tag)
-
-    # Get update data excluding inbound_tag
-    update_data = modified_host.model_dump(
-        exclude={"inbound_tag", "id"},
-    )
-
-    # Update attributes dynamically
-    for key, value in update_data.items():
-        setattr(db_host, key, value)
-
-    db.commit()
-    db.refresh(db_host)
-    return db_host
-
-
-def update_hosts(db: Session, modified_hosts: List[ProxyHostModify]):
-    for host in modified_hosts:
-        update_data = host.model_dump(
-            exclude={"inbound_tag", "id"},
-        )
-
-        old_host: ProxyHost | None = None
-        if host.id is not None:
-            old_host = get_host_by_id(db, host.id)
-
-        inbound = get_or_create_inbound(db, host.inbound_tag)
-
-        if old_host is None:
-            new_host = ProxyHost(inbound=inbound, **update_data)
-            db.add(new_host)
-        else:
-            for key, value in update_data.items():
-                setattr(old_host, key, value)
-
-    db.commit()
-    return modified_hosts
 
 
 def remove_host(db: Session, db_host: ProxyHost) -> ProxyHost:

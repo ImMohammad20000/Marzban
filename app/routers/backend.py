@@ -28,7 +28,7 @@ def get_core_config(_: Admin = Depends(Admin.check_sudo_admin)) -> dict:
 
 @router.put("", responses={403: responses._403})
 async def modify_core_config(
-    payload: dict, db: Session = Depends(get_db), _: Admin = Depends(Admin.check_sudo_admin)
+    payload: dict, db: Session = Depends(get_db), admin: Admin = Depends(Admin.check_sudo_admin)
 ) -> dict:
     """Modify the core configuration and restart the core."""
     try:
@@ -40,7 +40,7 @@ async def modify_core_config(
     with open(XRAY_JSON, "w") as f:
         f.write(json.dumps(payload, indent=4))
 
-    await node_operator.restart_all_node(db)
+    await node_operator.restart_all_node(db, admin=admin)
 
     backend.hosts.update()
 
