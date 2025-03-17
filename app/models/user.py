@@ -216,7 +216,6 @@ class UserResponse(User):
     lifetime_used_traffic: int = 0
     created_at: datetime
     subscription_url: str = ""
-    inbounds: List[str] | None = None
     admin: Optional[Admin] = None
     model_config = ConfigDict(from_attributes=True)
 
@@ -253,7 +252,6 @@ class UserResponse(User):
 class SubscriptionUserResponse(UserResponse):
     admin: Admin | None = Field(default=None, exclude=True)
     note: str | None = Field(None, exclude=True)
-    inbounds: Dict[ProxyTypes, List[str]] | None = Field(None, exclude=True)
     auto_delete_in_days: int | None = Field(None, exclude=True)
     model_config = ConfigDict(from_attributes=True)
 

@@ -21,7 +21,6 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql.expression import select, text
 
-from app import backend
 from app.db.base import Base
 from app.models.host import ProxyHostALPN, ProxyHostFingerprint, ProxyHostSecurity
 from app.models.user import ReminderType, UserDataLimitResetStrategy, UserStatus
@@ -132,19 +131,15 @@ class User(Base):
     def last_traffic_reset_time(self):
         return self.usage_logs[-1].reset_at if self.usage_logs else self.created_at
 
-    @property
-    def inbounds(self):
-        _ = {}
-        for proxy_type in self.proxy_settings:
-            _[proxy_type] = []
-            for group in self.groups:
-                tags = group.inbound_tags
-                for inbound in backend.config.inbounds_by_protocol.get(proxy_type, []):
-                    if inbound["tag"] in tags and inbound["tag"] not in _[proxy_type]:
-                        _[proxy_type].append(inbound["tag"])
-            if not _[proxy_type]:
-                del _[proxy_type]
-        return _
+    def inbounds(self, active_inbounds: list[str]) -> list[str]:
+        """Returns a flat list of all included inbound tags across all proxies"""
+        included_tags = []
+        for group in self.groups:
+            tags = group.inbound_tags
+            for inbound in active_inbounds:
+                if inbound in tags:
+                    included_tags.append(inbound)
+        return included_tags
 
     @property
     def group_ids(self):
