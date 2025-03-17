@@ -4,7 +4,7 @@ Functions for managing proxy hosts, users, user templates, nodes, and administra
 
 from datetime import UTC, datetime, timedelta, timezone
 from enum import Enum
-from typing import Dict, List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 from sqlalchemy import and_, delete, func, or_
 from sqlalchemy.orm import Query, Session, joinedload
@@ -29,6 +29,7 @@ from app.db.models import (
     NodeStatus,
 )
 from app.models.admin import AdminCreate, AdminModify, AdminPartialModify
+from app.models.group import Group, GroupCreate, GroupModify
 from app.models.host import CreateHost as ProxyHostModify
 from app.models.node import NodeUsageResponse
 from app.models.user import (
@@ -460,19 +461,10 @@ def update_user(db: Session, dbuser: User, modify: UserModify) -> User:
     Returns:
         User: The updated user object.
     """
-    added_proxies: Dict[ProxyTypes, Proxy] = {}
-    if modify.proxies:
-        for proxy_type, settings in modify.proxies.items():
-            dbproxy = db.query(Proxy).where(Proxy.user == dbuser, Proxy.type == proxy_type).first()
-            if dbproxy:
-                dbproxy.settings = settings.dict(no_obj=True)
-            else:
-                new_proxy = Proxy(type=proxy_type, settings=settings.dict(no_obj=True))
-                dbuser.proxies.append(new_proxy)
-                added_proxies.update({proxy_type: new_proxy})
-        for proxy in dbuser.proxies:
-            if proxy.type not in modify.proxies:
-                db.delete(proxy)
+    if modify.proxy_settings:
+        dbuser.proxy_settings.update(modify.proxy_settings)
+    if modify.group_ids:
+        dbuser.groups = db.query(Group).filter(Group.id.in_(modify.group_ids)).all()
     # if modify.inbounds:
     #    for proxy_type, tags in modify.excluded_inbounds.items():
     #        dbproxy = db.query(Proxy).where(
@@ -646,9 +638,9 @@ def revoke_user_sub(db: Session, db_user: User) -> User:
     db_user.sub_revoked_at = datetime.now(timezone.utc)
 
     user = UserResponse.model_validate(db_user)
-    for proxy_type, settings in user.proxies.copy().items():
+    for proxy_type, settings in user.proxy_settings.copy().items():
         settings.revoke()
-        user.proxies[proxy_type] = settings
+        user.proxy_settings[proxy_type] = settings
     db_user = update_user(db, db_user, user)
 
     db.commit()
@@ -1156,8 +1148,9 @@ def create_user_template(db: Session, user_template: UserTemplateCreate) -> User
         expire_duration=user_template.expire_duration,
         username_prefix=user_template.username_prefix,
         username_suffix=user_template.username_suffix,
-        inbounds=db.query(ProxyInbound).filter(ProxyInbound.tag.in_(inbound_tags)).all(),
+        groups=db.query(Group).filter(Group.id.in_(user_template.group_ids)).all(),
     )
+
     db.add(dbuser_template)
     db.commit()
     db.refresh(dbuser_template)
@@ -1189,11 +1182,8 @@ def update_user_template(
     if modified_user_template.username_suffix is not None:
         dbuser_template.username_suffix = modified_user_template.username_suffix
 
-    if modified_user_template.inbounds:
-        inbound_tags: List[str] = []
-        for _, i in modified_user_template.inbounds.items():
-            inbound_tags.extend(i)
-        dbuser_template.inbounds = db.query(ProxyInbound).filter(ProxyInbound.tag.in_(inbound_tags)).all()
+    if modified_user_template.groups:
+        dbuser_template.groups = db.query(Group).filter(Group.id.in_(modified_user_template.group_ids)).all()
 
     db.commit()
     db.refresh(dbuser_template)
@@ -1528,6 +1518,112 @@ def delete_notification_reminder(db: Session, dbreminder: NotificationReminder) 
 
 
 def count_online_users(db: Session, time_delta: timedelta):
+    """
+    Counts the number of users who have been online within the specified time delta.
+
+    Args:
+        db (Session): The database session.
+        time_delta (timedelta): The time period to check for online users.
+
+    Returns:
+        int: The number of users who have been online within the specified time period.
+    """
     twenty_four_hours_ago = datetime.utcnow() - time_delta
     query = db.query(func.count(User.id)).filter(User.online_at.isnot(None), User.online_at >= twenty_four_hours_ago)
     return query.scalar()
+
+
+def create_group(db: Session, group: GroupCreate) -> Group:
+    """
+    Creates a new group in the database.
+
+    Args:
+        db (Session): The database session.
+        group (GroupCreate): The group creation model containing group details.
+
+    Returns:
+        Group: The newly created Group object.
+    """
+    dbgroup = Group(
+        name=group.name,
+        inbounds=db.query(ProxyInbound).filter(ProxyInbound.tag.in_(group.inbound_tags)).all(),
+        is_disabled=group.is_disabled,
+    )
+    db.add(dbgroup)
+    db.commit()
+    db.refresh(dbgroup)
+    return dbgroup
+
+
+def get_group(db: Session, offset: int = None, limit: int = None):
+    """
+    Retrieves a list of groups with optional pagination.
+
+    Args:
+        db (Session): The database session.
+        offset (int, optional): The number of records to skip (for pagination).
+        limit (int, optional): The maximum number of records to return.
+
+    Returns:
+        tuple: A tuple containing:
+            - List[Group]: A list of Group objects
+            - int: The total count of groups
+    """
+    groups = db.query(Group)
+    if offset:
+        groups = groups.offset(offset)
+    if limit:
+        groups = groups.limit(limit)
+
+    count = groups.count()
+
+    return groups.all(), count
+
+
+def get_group_by_id(db: Session, group_id: int) -> Group | None:
+    """
+    Retrieves a group by its ID.
+
+    Args:
+        db (Session): The database session.
+        group_id (int): The ID of the group to retrieve.
+
+    Returns:
+        Optional[Group]: The Group object if found, None otherwise.
+    """
+    return db.query(Group).filter(Group.id == group_id).first()
+
+
+def update_group(db: Session, dbgroup: Group, modified_group: GroupModify) -> Group:
+    """
+    Updates an existing group with new information.
+
+    Args:
+        db (Session): The database session.
+        dbgroup (Group): The Group object to be updated.
+        modified_group (GroupModify): The modification model containing updated group details.
+
+    Returns:
+        Group: The updated Group object.
+    """
+    if dbgroup.name != modified_group.name:
+        dbgroup.name = modified_group.name
+    if modified_group.inbound_tags is not None:
+        dbgroup.inbounds = [get_or_create_inbound(db, i) for i in modified_group.inbound_tags]
+    if modified_group.is_disabled is not None:
+        dbgroup.is_disabled = modified_group.is_disabled
+    db.commit()
+    db.refresh(dbgroup)
+    return dbgroup
+
+
+def remove_group(db: Session, dbgroup: Group):
+    """
+    Removes a group from the database.
+
+    Args:
+        db (Session): The database session.
+        dbgroup (Group): The Group object to be removed.
+    """
+    db.delete(dbgroup)
+    db.commit()

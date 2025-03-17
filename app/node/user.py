@@ -1,9 +1,9 @@
-from sqlalchemy.orm import load_only, joinedload
+from sqlalchemy.orm import load_only
 
 from GozargahNodeBridge import create_user, create_proxy
 
 from app.db import GetDB, User
-from app.db.models import UserStatus,  ProxyInbound
+from app.db.models import UserStatus
 
 
 def serialize_user_for_node(user: User, inbounds: list[str] = None):
@@ -33,11 +33,7 @@ async def backend_users(inbounds: list[str]):
         query = (
             db.query(User)
             .options(
-                load_only(User.id, User.username),
-                joinedload(User.proxies).options(
-                    load_only(Proxy.type, Proxy.settings),
-                    joinedload(Proxy.excluded_inbounds).load_only(ProxyInbound.tag),
-                ),
+                load_only(User.id, User.username, User.proxy_settings, User.inbounds),
             )
             .filter(User.status.in_([UserStatus.active, UserStatus.on_hold]))
         )

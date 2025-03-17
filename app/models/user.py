@@ -56,7 +56,7 @@ class NextPlanModel(BaseModel):
 
 
 class User(BaseModel):
-    proxies: Dict[ProxyTypes, ProxySettings] = {}
+    proxy_settings: Dict[ProxyTypes, ProxySettings] = {}
     expire: datetime | int | None = Field(None, nullable=True)
     data_limit: Optional[int] = Field(ge=0, default=None, description="data_limit can be 0 or greater")
     data_limit_reset_strategy: UserDataLimitResetStrategy = UserDataLimitResetStrategy.no_reset
@@ -66,7 +66,7 @@ class User(BaseModel):
     online_at: Optional[datetime] = Field(None, nullable=True)
     on_hold_expire_duration: Optional[int] = Field(None, nullable=True)
     on_hold_timeout: datetime | int | None = Field(None, nullable=True)
-
+    group_ids: list[int] | None = Field(None, nullable=True)
     auto_delete_in_days: Optional[int] = Field(None, nullable=True)
 
     next_plan: Optional[NextPlanModel] = Field(None, nullable=True)
@@ -81,10 +81,14 @@ class User(BaseModel):
             return v
         raise ValueError("data_limit must be an integer or a float, not a string")  # Reject strings
 
-    @field_validator("proxies", mode="before")
+    @field_validator("proxy_settings", mode="before")
     def validate_proxies(cls, v, values, **kwargs):
-        if not v:
-            raise ValueError("Each user needs at least one proxy")
+        missing_protocols = {}
+        for element in ProxyTypes:
+            if element not in v:
+                missing_protocols[element] = {}
+        if missing_protocols:
+            v.update(missing_protocols)
         return {proxy_type: ProxySettings.from_dict(proxy_type, v.get(proxy_type, {})) for proxy_type in v}
 
     @field_validator("username", check_fields=False)
@@ -132,19 +136,16 @@ class User(BaseModel):
 
 class UserCreate(User):
     username: str
-    status: UserStatusCreate = None
+    status: UserStatusCreate | None = None
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
                 "username": "user1234",
-                "proxies": {
+                "proxy_settings": {
                     "vmess": {"id": "35e4e39c-7d5c-4f4b-8b71-558e4f37ff53"},
                     "vless": {},
                 },
-                "inbounds": {
-                    "vmess": ["VMess TCP", "VMess Websocket"],
-                    "vless": ["VLESS TCP REALITY", "VLESS GRPC REALITY"],
-                },
+                "group_ids": [1, 3, 5],
                 "next_plan": {"data_limit": 0, "expire": 0, "add_remaining_traffic": False, "fire_on_either": True},
                 "expire": 0,
                 "data_limit": 0,
@@ -156,42 +157,6 @@ class UserCreate(User):
             }
         }
     )
-
-    # @property
-    # def excluded_inbounds(self):
-    #    excluded = {}
-    #    for proxy_type in self.proxies:
-    #        excluded[proxy_type] = []
-    #        for inbound in backend.config.inbounds_by_protocol.get(proxy_type, []):
-    #            if inbound["tag"] not in self.inbounds.get(proxy_type, []):
-    #                excluded[proxy_type].append(inbound["tag"])
-    #    return excluded
-
-    # @field_validator("inbounds", mode="before")
-    # def validate_inbounds(cls, inbounds, values, **kwargs):
-    #    proxies = values.data.get("proxies", [])
-    #
-    #    # delete inbounds that are for protocols not activated
-    #    for proxy_type in inbounds.copy():
-    #        if proxy_type not in proxies:
-    #            del inbounds[proxy_type]
-    #
-    #    # check by proxies to ensure that every protocol has inbounds set
-    #    for proxy_type in proxies:
-    #        tags = inbounds.get(proxy_type)
-    #
-    #        if tags:
-    #            for tag in tags:
-    #                if tag not in backend.config.inbounds_by_tag:
-    #                    raise ValueError(f"Inbound {tag} doesn't exist")
-    #
-    #        # elif isinstance(tags, list) and not tags:
-    #        #     raise ValueError(f"{proxy_type} inbounds cannot be empty")
-    #
-    #        else:
-    #            inbounds[proxy_type] = [i["tag"] for i in backend.config.inbounds_by_protocol.get(proxy_type, [])]
-    #
-    #    return inbounds
 
     @field_validator("status", mode="before")
     def validate_status(cls, status, values):
@@ -206,19 +171,16 @@ class UserCreate(User):
 
 
 class UserModify(User):
-    status: UserStatusModify = None
-    data_limit_reset_strategy: UserDataLimitResetStrategy = None
+    status: UserStatusModify | None = None
+    data_limit_reset_strategy: UserDataLimitResetStrategy | None = None
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "proxies": {
+                "proxy_settings": {
                     "vmess": {"id": "35e4e39c-7d5c-4f4b-8b71-558e4f37ff53"},
                     "vless": {},
                 },
-                "inbounds": {
-                    "vmess": ["VMess TCP", "VMess Websocket"],
-                    "vless": ["VLESS TCP REALITY", "VLESS GRPC REALITY"],
-                },
+                "group_ids": [1, 3, 5],
                 "next_plan": {"data_limit": 0, "expire": 0, "add_remaining_traffic": False, "fire_on_either": True},
                 "expire": 0,
                 "data_limit": 0,
@@ -231,33 +193,7 @@ class UserModify(User):
         }
     )
 
-    # @property
-    # def excluded_inbounds(self):
-    #    excluded = {}
-    #    for proxy_type in self.inbounds:
-    #        excluded[proxy_type] = []
-    #        for inbound in backend.config.inbounds_by_protocol.get(proxy_type, []):
-    #            if inbound["tag"] not in self.inbounds.get(proxy_type, []):
-    #                excluded[proxy_type].append(inbound["tag"])
-    #
-    #    return excluded
-    #
-    # @field_validator("inbounds", mode="before")
-    # def validate_inbounds(cls, inbounds, values, **kwargs):
-    #    # check with inbounds, "proxies" is optional on modifying
-    #    # so inbounds particularly can be modified
-    #    if inbounds:
-    #        for proxy_type, tags in inbounds.items():
-    #            # if not tags:
-    #            #     raise ValueError(f"{proxy_type} inbounds cannot be empty")
-    #
-    #            for tag in tags:
-    #                if tag not in backend.config.inbounds_by_tag:
-    #                    raise ValueError(f"Inbound {tag} doesn't exist")
-    #
-    #    return inbounds
-
-    @field_validator("proxies", mode="before")
+    @field_validator("proxy_settings", mode="before")
     def validate_proxies(cls, v):
         return {proxy_type: ProxySettings.from_dict(proxy_type, v.get(proxy_type, {})) for proxy_type in v}
 
@@ -280,9 +216,7 @@ class UserResponse(User):
     lifetime_used_traffic: int = 0
     created_at: datetime
     subscription_url: str = ""
-    proxies: dict
-    excluded_inbounds: Dict[ProxyTypes, List[str]] = {}
-
+    inbounds: List[str] | None = None
     admin: Optional[Admin] = None
     model_config = ConfigDict(from_attributes=True)
 
@@ -299,7 +233,7 @@ class UserResponse(User):
             self.subscription_url = f"{url_prefix}/{XRAY_SUBSCRIPTION_PATH}/{token}"
         return self
 
-    @field_validator("proxies", mode="before")
+    @field_validator("proxy_settings", mode="before")
     def validate_proxies(cls, v, values, **kwargs):
         if isinstance(v, list):
             v = {p.type: p.settings for p in v}
@@ -318,7 +252,6 @@ class UserResponse(User):
 
 class SubscriptionUserResponse(UserResponse):
     admin: Admin | None = Field(default=None, exclude=True)
-    excluded_inbounds: Dict[ProxyTypes, List[str]] | None = Field(None, exclude=True)
     note: str | None = Field(None, exclude=True)
     inbounds: Dict[ProxyTypes, List[str]] | None = Field(None, exclude=True)
     auto_delete_in_days: int | None = Field(None, exclude=True)
@@ -343,7 +276,7 @@ class UserUsageResponse(BaseModel):
             return int(v)
         if isinstance(v, int):  # Allow integers directly
             return v
-        raise ValueError("must be an integer or a float, not a string")  # Reject strings
+        raise ValueError("must be an integer or a float")  # Reject strings
 
 
 class UserUsagesResponse(BaseModel):

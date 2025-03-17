@@ -1,5 +1,6 @@
 from sqlalchemy.exc import IntegrityError
 
+from app.dependencies import get_validated_group
 from app.operation import BaseOperator
 from app.db import Session
 from app.models.user import UserResponse, UserCreate, UserModify, UserStatus
@@ -45,14 +46,13 @@ class UserOperator(BaseOperator):
             get_user_template(new_user.next_plan.user_template_id)
 
         user_data = new_user.model_dump(exclude={"next_plan", "proxies", "expire"}, exclude_none=True)
-        proxies = []
-        for proxy_type, settings in new_user.proxies.items():
-            proxies.append(Proxy(type=proxy_type.value, settings=settings.dict(no_obj=True)))
+        if new_user.group_ids:
+            for group_id in new_user.group_ids:
+                get_validated_group(group_id, admin, db)
 
         db_admin = get_admin(db, admin.username)
         db_user = User(
             **user_data,
-            proxies=proxies,
             expire=(new_user.expire or None),
             admin=db_admin,
             next_plan=NextPlan(**new_user.next_plan.model_dump()) if new_user.next_plan else None,

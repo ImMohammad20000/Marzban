@@ -9,6 +9,7 @@ from . import (
     user,
     home,
     host,
+    group,
 )
 
 api_router = APIRouter()
@@ -17,6 +18,7 @@ routers = [
     home.router,
     admin.router,
     system.router,
+    group.router,
     backend.router,
     host.router,
     node.router,

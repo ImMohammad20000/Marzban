@@ -39,8 +39,8 @@ async def add_user(
     - **expire**: UTC datetime for account expiration. Use `0` for unlimited.
     - **data_limit**: Max data usage in bytes (e.g., `1073741824` for 1GB). `0` means unlimited.
     - **data_limit_reset_strategy**: Defines how/if data limit resets. `no_reset` means it never resets.
-    - **proxies**: Dictionary of protocol settings (e.g., `vmess`, `vless`).
-    - **inbounds**: Dictionary of protocol tags to specify inbound connections.
+    - **proxy_settings**: Dictionary of protocol settings (e.g., `vmess`, `vless`) will generate data for all protocol by default.
+    - **group_ids**: List of group IDs to assign to the user.
     - **note**: Optional text field for additional user information or notes.
     - **on_hold_timeout**: UTC timestamp when `on_hold` status should start or end.
     - **on_hold_expire_duration**: Duration (in seconds) for how long the user should stay in `on_hold` status.

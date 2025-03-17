@@ -1651,7 +1651,7 @@ def confirm_user_command(call: types.CallbackQuery):
             user = UserResponse.model_validate(db_user)
 
             inbounds = template.inbounds
-            proxies = {p.type.value: p.settings for p in db_user.proxies}
+            proxies = {p.type.value: p.settings for p in db_user.proxy_settings}
 
             for protocol in backend.config.inbounds_by_protocol:
                 if protocol in inbounds and protocol not in db_user.inbounds:
@@ -1736,17 +1736,15 @@ def confirm_user_command(call: types.CallbackQuery):
             if not db_user:
                 return bot.answer_callback_query(call.id, text="User not found!", show_alert=True)
 
-            proxies = {p.type.value: p.settings for p in db_user.proxies}
+            proxies = {p.type.value: p.settings for p in db_user.proxy_settings}
 
             for protocol in backend.config.inbounds_by_protocol:
                 if protocol in inbounds and protocol not in db_user.inbounds:
-                    proxies.update(
-                        {
-                            protocol: {"flow": TELEGRAM_DEFAULT_VLESS_FLOW}
-                            if TELEGRAM_DEFAULT_VLESS_FLOW and protocol == ProxyTypes.VLESS
-                            else {}
-                        }
-                    )
+                    proxies.update({
+                        protocol: {"flow": TELEGRAM_DEFAULT_VLESS_FLOW}
+                        if TELEGRAM_DEFAULT_VLESS_FLOW and protocol == ProxyTypes.VLESS
+                        else {}
+                    })
                 elif protocol in db_user.inbounds and protocol not in inbounds:
                     del proxies[protocol]
 
@@ -1757,14 +1755,14 @@ def confirm_user_command(call: types.CallbackQuery):
                     on_hold_expire_duration=expire_date,
                     on_hold_timeout=mem_store.get(f"{call.message.chat.id}:expire_on_hold_timeout"),
                     data_limit=data_limit,
-                    proxies=proxies,
+                    proxy_settings=proxies,
                     inbounds=inbounds,
                 )
             else:
                 modify = UserModify(
                     expire=int(expire_date.timestamp()) if expire_date else 0,
                     data_limit=data_limit,
-                    proxies=proxies,
+                    proxy_settings=proxies,
                     inbounds=inbounds,
                 )
             last_user = UserResponse.model_validate(db_user)
@@ -1868,7 +1866,7 @@ def confirm_user_command(call: types.CallbackQuery):
                     data_limit=mem_store.get(f"{call.message.chat.id}:data_limit")
                     if mem_store.get(f"{call.message.chat.id}:data_limit")
                     else None,
-                    proxies=proxies,
+                    proxy_settings=proxies,
                     inbounds=inbounds,
                 )
             else:
@@ -1881,10 +1879,10 @@ def confirm_user_command(call: types.CallbackQuery):
                     data_limit=mem_store.get(f"{call.message.chat.id}:data_limit")
                     if mem_store.get(f"{call.message.chat.id}:data_limit")
                     else None,
-                    proxies=proxies,
+                    proxy_settings=proxies,
                     inbounds=inbounds,
                 )
-            for proxy_type in new_user.proxies:
+            for proxy_type in new_user.proxy_settings:
                 if not backend.config.inbounds_by_protocol.get(proxy_type):
                     return bot.answer_callback_query(
                         call.id, f"❌ Protocol {proxy_type} is disabled on your server", show_alert=True
@@ -1892,7 +1890,7 @@ def confirm_user_command(call: types.CallbackQuery):
             try:
                 with GetDB() as db:
                     db_user = crud.create_user(db, new_user)
-                    proxies = db_user.proxies
+                    proxies = db_user.proxy_settings
                     user = UserResponse.model_validate(db_user)
                     backend.operations.add_user(db_user)
                     if mem_store.get(f"{call.message.chat.id}:is_bulk", False):
@@ -2112,20 +2110,18 @@ def confirm_user_command(call: types.CallbackQuery):
                 if (data == "inbound_remove" and inbound in inbound_tags) or (
                     data == "inbound_add" and inbound not in inbound_tags
                 ):
-                    proxies = {p.type.value: p.settings for p in user.proxies}
+                    proxies = {p.type.value: p.settings for p in user.proxy_settings}
                     for protocol in backend.config.inbounds_by_protocol:
                         if protocol in new_inbounds and protocol not in user.inbounds:
-                            proxies.update(
-                                {
-                                    protocol: {"flow": TELEGRAM_DEFAULT_VLESS_FLOW}
-                                    if TELEGRAM_DEFAULT_VLESS_FLOW and protocol == ProxyTypes.VLESS
-                                    else {}
-                                }
-                            )
+                            proxies.update({
+                                protocol: {"flow": TELEGRAM_DEFAULT_VLESS_FLOW}
+                                if TELEGRAM_DEFAULT_VLESS_FLOW and protocol == ProxyTypes.VLESS
+                                else {}
+                            })
                         elif protocol in user.inbounds and protocol not in new_inbounds:
                             del proxies[protocol]
                     try:
-                        user = crud.update_user(db, user, UserModify(inbounds=new_inbounds, proxies=proxies))
+                        user = crud.update_user(db, user, UserModify(inbounds=new_inbounds, proxy_settings=proxies))
                         if user.status == UserStatus.active:
                             backend.operations.update_user(user)
                     except Exception:
