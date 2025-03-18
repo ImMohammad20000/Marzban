@@ -2,12 +2,12 @@ import re
 import secrets
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Union
+from typing import Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.models.admin import Admin
-from app.models.proxy import ProxySettings, ProxyTypes
+from app.models.proxy import ProxyTable
 from app.utils.jwt import create_subscription_token
 from config import XRAY_SUBSCRIPTION_PATH, XRAY_SUBSCRIPTION_URL_PREFIX
 
@@ -56,7 +56,7 @@ class NextPlanModel(BaseModel):
 
 
 class User(BaseModel):
-    proxy_settings: Dict[ProxyTypes, ProxySettings] = {}
+    proxy_settings: ProxyTable = Field(default_factory=ProxyTable)
     expire: datetime | int | None = Field(None, nullable=True)
     data_limit: Optional[int] = Field(ge=0, default=None, description="data_limit can be 0 or greater")
     data_limit_reset_strategy: UserDataLimitResetStrategy = UserDataLimitResetStrategy.no_reset
@@ -80,16 +80,6 @@ class User(BaseModel):
         if isinstance(v, int):  # Allow integers directly
             return v
         raise ValueError("data_limit must be an integer or a float, not a string")  # Reject strings
-
-    @field_validator("proxy_settings", mode="before")
-    def validate_proxies(cls, v, values, **kwargs):
-        missing_protocols = {}
-        for element in ProxyTypes:
-            if element not in v:
-                missing_protocols[element] = {}
-        if missing_protocols:
-            v.update(missing_protocols)
-        return {proxy_type: ProxySettings.from_dict(proxy_type, v.get(proxy_type, {})) for proxy_type in v}
 
     @field_validator("username", check_fields=False)
     @classmethod
@@ -200,10 +190,6 @@ class UserModify(User):
         }
     )
 
-    @field_validator("proxy_settings", mode="before")
-    def validate_proxies(cls, v):
-        return {proxy_type: ProxySettings.from_dict(proxy_type, v.get(proxy_type, {})) for proxy_type in v}
-
     @field_validator("status", mode="before")
     def validate_status(cls, status, values):
         on_hold_expire = values.data.get("on_hold_expire_duration")
@@ -240,12 +226,6 @@ class UserResponse(User):
             self.subscription_url = f"{url_prefix}/{XRAY_SUBSCRIPTION_PATH}/{token}"
         return self
 
-    @field_validator("proxy_settings", mode="before")
-    def validate_proxies(cls, v, values, **kwargs):
-        if isinstance(v, list):
-            v = {p.type: p.settings for p in v}
-        return super().validate_proxies(v, values, **kwargs)
-
     @field_validator("used_traffic", "lifetime_used_traffic", mode="before")
     def cast_to_int(cls, v):
         if v is None:  # Allow None values
@@ -265,7 +245,7 @@ class SubscriptionUserResponse(UserResponse):
 
 
 class UsersResponse(BaseModel):
-    users: List[UserResponse]
+    users: list[UserResponse]
     total: int
 
 
@@ -287,8 +267,8 @@ class UserUsageResponse(BaseModel):
 
 class UserUsagesResponse(BaseModel):
     username: str
-    usages: List[UserUsageResponse]
+    usages: list[UserUsageResponse]
 
 
 class UsersUsagesResponse(BaseModel):
-    usages: List[UserUsageResponse]
+    usages: list[UserUsageResponse]

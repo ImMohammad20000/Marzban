@@ -29,6 +29,7 @@ from app.db.models import (
     NodeStatus,
     Group,
 )
+from app.models.proxy import ProxyTable
 from app.models.admin import AdminCreate, AdminModify, AdminPartialModify
 from app.models.group import GroupCreate, GroupModify
 from app.models.node import NodeUsageResponse
@@ -415,7 +416,7 @@ def update_user(db: Session, dbuser: User, modify: UserModify) -> User:
         User: The updated user object.
     """
     if modify.proxy_settings:
-        dbuser.proxy_settings.update(modify.proxy_settings)
+        dbuser.proxy_settings = modify.proxy_settings.dict(no_obj=True)
     if modify.group_ids:
         dbuser.groups = get_groups_by_ids(db, modify.group_ids)
     # if modify.inbounds:
@@ -590,11 +591,8 @@ def revoke_user_sub(db: Session, db_user: User) -> User:
     """
     db_user.sub_revoked_at = datetime.now(timezone.utc)
 
-    user = UserResponse.model_validate(db_user)
-    for proxy_type, settings in user.proxy_settings.copy().items():
-        settings.revoke()
-        user.proxy_settings[proxy_type] = settings
-    db_user = update_user(db, db_user, user)
+    db_user.proxy_settings = ProxyTable()
+    db_user = update_user(db, db_user, db_user)
 
     db.commit()
     db.refresh(db_user)

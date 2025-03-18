@@ -1,6 +1,7 @@
 import re
-from typing import List
+
 from pydantic import BaseModel, ConfigDict, field_validator
+
 
 GROUPNAME_REGEXP = re.compile(r"^(?=\w{3,64}\b)[a-zA-Z0-9]+(?:[a-zA-Z0-9]+)*$")
 
@@ -10,7 +11,15 @@ class Group(BaseModel):
     inbound_tags: list[str] | None = []
     is_disabled: bool = False
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "name": "group_1",
+                "inbound_tags": ["VMess TCP", "VMess Websocket"],
+            }
+        },
+    )
 
     @field_validator("name", mode="after")
     @classmethod
@@ -21,14 +30,7 @@ class Group(BaseModel):
 
 
 class GroupCreate(Group):
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "name": "group 1",
-                "inbound_tags": ["VMess TCP", "VMess Websocket"],
-            }
-        }
-    )
+    inbound_tags: list[str] = []
 
     @field_validator("inbound_tags", mode="after")
     @classmethod
@@ -39,11 +41,10 @@ class GroupCreate(Group):
 
 
 class GroupModify(Group):
-    inbound_tags: list[str] | None = None
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "name": "group 1",
+                "name": "group_1",
                 "inbound_tags": ["VMess TCP", "VMess Websocket"],
             }
         }
@@ -58,5 +59,5 @@ class GroupResponse(Group):
 
 
 class GroupsResponse(BaseModel):
-    groups: List[GroupResponse]
+    groups: list[GroupResponse]
     total: int

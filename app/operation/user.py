@@ -1,4 +1,5 @@
 import asyncio
+import json
 
 from sqlalchemy.exc import IntegrityError
 
@@ -46,7 +47,10 @@ class UserOperator(BaseOperator):
         if new_user.next_plan is not None and new_user.next_plan.user_template_id is not None:
             get_user_template(new_user.next_plan.user_template_id)
 
-        user_data = new_user.model_dump(exclude={"next_plan", "proxies", "expire", "group_ids"}, exclude_none=True)
+        user_data = new_user.model_dump(
+            exclude={"next_plan", "expire", "proxy_settings", "group_ids"}, exclude_none=True
+        )
+        print("before", new_user.proxy_settings)
         all_groups = []
         if new_user.group_ids:
             for group_id in new_user.group_ids:
@@ -56,11 +60,13 @@ class UserOperator(BaseOperator):
         db_admin = get_admin(db, admin.username)
         db_user = User(
             **user_data,
+            proxy_settings=new_user.proxy_settings.dict(no_obj=True),
             expire=(new_user.expire or None),
             admin=db_admin,
             groups=all_groups,
             next_plan=NextPlan(**new_user.next_plan.model_dump()) if new_user.next_plan else None,
         )
+        print("after", db_user.proxy_settings)
         try:
             db_user = create_user(db, db_user)
         except IntegrityError:
@@ -76,12 +82,13 @@ class UserOperator(BaseOperator):
         return user
 
     async def modify_user(self, db: Session, username: str, modified_user: UserModify, admin: Admin) -> UserResponse:
-        db_user: User = self.get_validated_user(db, username, admin)
+        db_user: User = await self.get_validated_user(db, username, admin)
 
         if modified_user.next_plan is not None and modified_user.next_plan.user_template_id is not None:
             get_user_template(modified_user.next_plan.user_template_id)
 
         old_status = db_user.status
+        logger.info(modified_user.proxy_settings)
         db_user = update_user(db, db_user, modified_user)
         user = UserResponse.model_validate(db_user)
 
