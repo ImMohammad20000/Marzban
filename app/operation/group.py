@@ -5,6 +5,12 @@ from app.db import Session, crud
 
 
 class GroupOperation(BaseOperator):
+    async def get_validated_group(self, group_id: int, db: Session) -> Group:
+        dbgroup = crud.get_group_by_id(db, group_id)
+        if not dbgroup:
+            self.raise_error("Group not found", 404)
+        return dbgroup
+
     async def check_inbound_tags(self, tags: list[str]) -> None:
         for tag in tags:
             if tag not in backend.config.inbounds_by_tag:
@@ -19,7 +25,7 @@ class GroupOperation(BaseOperator):
         return {"groups": dbgroups, "total": count}
 
     async def get_group(self, db: Session, group_id: int) -> Group:
-        return crud.get_group(db, group_id)
+        return await self.get_validated_group(group_id, db)
 
     async def modify_group(self, db: Session, dbgroup: Group, modified_group: GroupModify) -> Group:
         await self.check_inbound_tags(modified_group.inbound_tags)

@@ -530,7 +530,7 @@ def reset_user_data_usage(db: Session, db_user: User) -> User:
     return db_user
 
 
-def reset_user_by_next(db: Session, dbuser: User) -> User:
+def reset_user_by_next(db: Session, dbuser: User) -> None | User:
     """
     Resets the data usage of a user based on next user.
 
@@ -560,7 +560,7 @@ def reset_user_by_next(db: Session, dbuser: User) -> User:
         )
         dbuser.expire = timedelta(seconds=dbuser.next_plan.expire) + datetime.now(UTC)
     else:
-        dbuser.inbounds = dbuser.next_plan.user_template.inbounds
+        dbuser.groups = dbuser.next_plan.user_template.groups
         dbuser.data_limit = dbuser.next_plan.user_template.data_limit + (
             0 if dbuser.next_plan.add_remaining_traffic else dbuser.data_limit or 0 - dbuser.used_traffic
         )
