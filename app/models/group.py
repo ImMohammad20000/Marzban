@@ -7,7 +7,7 @@ GROUPNAME_REGEXP = re.compile(r"^(?=\w{3,64}\b)[a-zA-Z0-9]+(?:[a-zA-Z0-9]+)*$")
 
 class Group(BaseModel):
     name: str
-    inbound_tags: list[str] | None = []
+    inbound_tags: list[str] = []
     is_disabled: bool = False
 
     model_config = ConfigDict(from_attributes=True)
@@ -33,7 +33,7 @@ class GroupCreate(Group):
     @field_validator("inbound_tags", mode="after")
     @classmethod
     def inbound_tags_validator(cls, v):
-        if not v:
+        if not v and len(v) == 0:
             raise ValueError("you must select at least one inbound")
         return v
 
