@@ -33,7 +33,7 @@ class GroupCreate(Group):
     @field_validator("inbound_tags", mode="after")
     @classmethod
     def inbound_tags_validator(cls, v):
-        if not v and len(v) == 0:
+        if not v and len(v) < 1:
             raise ValueError("you must select at least one inbound")
         return v
 
