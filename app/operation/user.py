@@ -7,7 +7,6 @@ from app.db import Session
 from app.db.crud import (
     create_user,
     get_admin,
-    get_groups_by_ids,
     get_user,
     get_user_template,
     remove_user,
@@ -48,8 +47,8 @@ class UserOperator(BaseOperator):
             get_user_template(new_user.next_plan.user_template_id)
 
         user_data = new_user.model_dump(exclude={"next_plan", "proxies", "expire", "group_ids"}, exclude_none=True)
+        all_groups = []
         if new_user.group_ids:
-            all_groups = []
             for group_id in new_user.group_ids:
                 db_group = get_validated_group(group_id, admin, db)
                 all_groups.append(db_group)

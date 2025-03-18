@@ -169,6 +169,14 @@ class UserCreate(User):
                 raise ValueError("User cannot be on hold with specified expire.")
         return status
 
+    @field_validator("group_ids", mode="after")
+    @classmethod
+    def group_ids_validator(cls, v):
+        if not v:
+            raise ValueError("you must select at least one group")
+        return v
+
+
 
 class UserModify(User):
     status: UserStatusModify | None = None

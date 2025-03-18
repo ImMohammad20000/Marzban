@@ -113,7 +113,7 @@ def get_v2ray_links(user: UserResponse) -> list:
 
 def get_validated_group(
     group_id: int, admin: Admin = Depends(Admin.get_current), db: Session = Depends(get_db)
-) -> Group:
+):
     dbgroup = crud.get_group_by_id(db, group_id)
     if not dbgroup:
         raise HTTPException(status_code=404, detail="Group not found")

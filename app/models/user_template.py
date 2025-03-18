@@ -1,6 +1,6 @@
-from typing import List, Optional
+from typing import Optional
 
-from pydantic import ConfigDict, BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class UserTemplate(BaseModel):
@@ -11,7 +11,7 @@ class UserTemplate(BaseModel):
     )
     username_prefix: Optional[str] = Field(max_length=20, min_length=1, default=None)
     username_suffix: Optional[str] = Field(max_length=20, min_length=1, default=None)
-    group_ids: List[int] | None = []
+    group_ids: list[int] | None = Field(default_factory=list)
 
 
 class UserTemplateCreate(UserTemplate):
@@ -27,6 +27,13 @@ class UserTemplateCreate(UserTemplate):
             }
         }
     )
+
+    @field_validator("group_ids", mode="after")
+    @classmethod
+    def group_ids_validator(cls, v):
+        if not v:
+            raise ValueError("you must select at least one group")
+        return v
 
 
 class UserTemplateModify(UserTemplate):
