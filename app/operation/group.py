@@ -1,10 +1,18 @@
 from app import backend
+from app.db.models import Admin
 from app.operation import BaseOperator
 from app.models.group import Group, GroupCreate, GroupModify, GroupsResponse
-from app.db import Session, crud
+from app.db import crud
+from sqlalchemy.orm import Session
 
 
 class GroupOperation(BaseOperator):
+    def get_validated_group(self, db: Session, group_id: int, admin: Admin | None = None) -> Group:
+        dbgroup = crud.get_group_by_id(db, group_id, admin)
+        if not dbgroup:
+            self.raise_error(code=404, message="Group not found")
+        return dbgroup
+
     async def check_inbound_tags(self, tags: list[str]) -> None:
         for tag in tags:
             if tag not in backend.config.inbounds_by_tag:
@@ -14,12 +22,14 @@ class GroupOperation(BaseOperator):
         await self.check_inbound_tags(new_group.inbound_tags)
         return crud.create_group(db, new_group)
 
-    async def get_all_groups(self, db: Session, offset: int, limit: int) -> GroupsResponse:
-        dbgroups, count = crud.get_group(db, offset, limit)
+    async def get_all_groups(
+        self, db: Session, offset: int | None = None, limit: int | None = None, admin: Admin | None = None
+    ) -> GroupsResponse:
+        dbgroups, count = crud.get_group(db, offset, limit, admin)
         return {"groups": dbgroups, "total": count}
 
-    async def get_group(self, db: Session, group_id: int) -> Group:
-        return crud.get_group(db, group_id)
+    async def get_group(self, db: Session, group_id: int, admin: Admin | None = None) -> Group:
+        return self.get_validated_group(db, group_id, admin)
 
     async def modify_group(self, db: Session, dbgroup: Group, modified_group: GroupModify) -> Group:
         await self.check_inbound_tags(modified_group.inbound_tags)

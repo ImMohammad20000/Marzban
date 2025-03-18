@@ -1,5 +1,4 @@
 from app import on_startup
-from app.models.host import ProxyHostSecurity
 from app.utils.store import DictStorage
 from app.backend.xray import XRayConfig
 from config import XRAY_JSON
@@ -11,6 +10,7 @@ config = XRayConfig(XRAY_JSON)
 @DictStorage
 def hosts(storage: dict):
     from app.db import GetDB, crud
+    from app.models.host import ProxyHostSecurity
 
     storage.clear()
     with GetDB() as db:

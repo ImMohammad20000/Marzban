@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, status
 from app.db import Session, get_db
-from app.dependencies import get_validated_group
 from app.models.admin import Admin
 from app.models.group import (
     Group,
@@ -37,7 +36,9 @@ operator = GroupOperation(OperatorType.API)
         403: responses._403,
     },
 )
-async def add_group(new_group: GroupCreate, db: Session = Depends(get_db), _: Admin = Depends(Admin.check_sudo_admin)):
+async def add_group(
+    new_group: GroupCreate, db: Session = Depends(get_db), admin: Admin = Depends(Admin.check_sudo_admin)
+):
     """
     Create a new group in the system.
 
@@ -69,7 +70,7 @@ async def add_group(new_group: GroupCreate, db: Session = Depends(get_db), _: Ad
     },
 )
 async def get_all_groups(
-    offset: int = None, limit: int = None, db: Session = Depends(get_db), _: Admin = Depends(Admin.get_current)
+    offset: int = None, limit: int = None, db: Session = Depends(get_db), admin: Admin = Depends(Admin.get_current)
 ):
     """
     Retrieve a list of all groups with optional pagination.
@@ -102,7 +103,7 @@ async def get_all_groups(
         404: {"description": "Group not found"},
     },
 )
-async def get_validated_group(dbgroup: Group = Depends(get_validated_group)):
+async def get_group_by_id(group_id: int, db: Session = Depends(get_db), admin: Admin = Depends(Admin.get_current)):
     """
     Get a specific group by its **ID**.
 
@@ -119,7 +120,7 @@ async def get_validated_group(dbgroup: Group = Depends(get_validated_group)):
     Raises:
         404: Not Found - If group doesn't exist
     """
-    return dbgroup
+    return await operator.get_group(db, group_id, admin)
 
 
 @router.put(
@@ -137,8 +138,8 @@ async def get_validated_group(dbgroup: Group = Depends(get_validated_group)):
 async def modify_group(
     modified_group: GroupModify,
     db: Session = Depends(get_db),
-    _: Admin = Depends(Admin.check_sudo_admin),
-    dbgroup: Group = Depends(get_validated_group),
+    admin: Admin = Depends(Admin.check_sudo_admin),
+    dbgroup: Group = Depends(get_group_by_id),
 ):
     """
     Update an existing group's information.
@@ -175,8 +176,8 @@ async def modify_group(
 )
 async def delete_group(
     db: Session = Depends(get_db),
-    dbgroup: Group = Depends(get_validated_group),
-    _: Admin = Depends(Admin.check_sudo_admin),
+    dbgroup: Group = Depends(get_group_by_id),
+    admin: Admin = Depends(Admin.check_sudo_admin),
 ):
     """
     Delete a group by its **ID**.

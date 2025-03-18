@@ -29,6 +29,10 @@ class Admin(BaseModel):
     sub_domain: str | None = None
     profile_title: str | None = None
     support_url: str | None = None
+    all_groups_access: bool = False
+    all_templates_access: bool = False
+    group_ids: list[int] | None = None
+    template_ids: list[int] | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -128,6 +132,10 @@ class AdminModify(BaseModel):
     sub_domain: str | None = None
     profile_title: str | None = None
     support_url: str | None = None
+    all_groups_access: bool | None = None
+    all_templates_access: bool | None = None
+    group_ids: list[int] | None = None
+    template_ids: list[int] | None = None
 
     @property
     def hashed_password(self):

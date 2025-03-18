@@ -38,6 +38,18 @@ users_groups_association = Table(
     Column("user_id", ForeignKey("users.id"), primary_key=True),
     Column("groups_id", ForeignKey("groups.id"), primary_key=True),
 )
+admins_groups_association = Table(
+    "admins_groups_association",
+    Base.metadata,
+    Column("admin_id", ForeignKey("admins.id"), primary_key=True),
+    Column("group_id", ForeignKey("groups.id"), primary_key=True),
+)
+admins_templates_association = Table(
+    "admins_templates_association",
+    Base.metadata,
+    Column("admin_id", ForeignKey("admins.id"), primary_key=True),
+    Column("template_id", ForeignKey("user_templates.id"), primary_key=True),
+)
 
 
 class Admin(Base):
@@ -49,6 +61,8 @@ class Admin(Base):
     users = relationship("User", back_populates="admin")
     created_at = Column(DateTime, default=datetime.utcnow)
     is_sudo = Column(Boolean, default=False)
+    all_groups_access = Column(Boolean, nullable=False, default=False, server_default="0")
+    all_templates_access = Column(Boolean, nullable=False, default=False, server_default="0")
     password_reset_at = Column(DateTime, nullable=True)
     telegram_id = Column(BigInteger, nullable=True, default=None)
     discord_webhook = Column(String(1024), nullable=True, default=None)
@@ -59,7 +73,16 @@ class Admin(Base):
     sub_domain = Column(String(256), nullable=True, default=None)
     profile_title = Column(String(512), nullable=True, default=None)
     support_url = Column(String(1024), nullable=True, default=None)
+    groups = relationship("Group", secondary=admins_groups_association, back_populates="admins")
+    templates = relationship("UserTemplate", secondary=admins_templates_association, back_populates="admins")
 
+    @property
+    def group_ids(self):
+        return [group.id for group in self.groups]
+
+    @property
+    def template_ids(self):
+        return [template.id for template in self.templates]
 
 class AdminUsageLogs(Base):
     __tablename__ = "admin_usage_logs"
@@ -189,6 +212,7 @@ class UserTemplate(Base):
         secondary=template_group_association,
         back_populates="templates",
     )
+    admins = relationship("Admin", secondary=admins_templates_association, back_populates="templates")
 
     @property
     def group_ids(self):
@@ -376,6 +400,7 @@ class Group(Base):
     users = relationship("User", secondary=users_groups_association, back_populates="groups")
     inbounds = relationship("ProxyInbound", secondary=inbounds_groups_association, back_populates="groups")
     templates = relationship("UserTemplate", secondary=template_group_association, back_populates="groups")
+    admins = relationship("Admin", secondary=admins_groups_association, back_populates="groups")
 
     @property
     def inbound_ids(self):
@@ -388,3 +413,7 @@ class Group(Base):
     @property
     def total_users(self):
         return len(self.users)
+
+    @property
+    def total_templates(self):
+        return len(self.templates)

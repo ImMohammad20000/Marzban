@@ -57,9 +57,11 @@ def validate_dates(
         raise HTTPException(status_code=400, detail="Invalid date range or format")
 
 
-def get_user_template(template_id: int, db: Session = Depends(get_db)):
+def get_validated_user_template(
+    template_id: int, db: Session = Depends(get_db), admin: Admin = Depends(Admin.get_current)
+):
     """Fetch a User Template by its ID, raise 404 if not found."""
-    dbuser_template = crud.get_user_template(db, template_id)
+    dbuser_template = crud.get_user_template(db, template_id, admin)
     if not dbuser_template:
         raise HTTPException(status_code=404, detail="User Template not found")
     return dbuser_template
