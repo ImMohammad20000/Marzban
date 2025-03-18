@@ -27,9 +27,10 @@ from app.db.models import (
     UserTemplate,
     UserUsageResetLogs,
     NodeStatus,
+    Group,
 )
 from app.models.admin import AdminCreate, AdminModify, AdminPartialModify
-from app.models.group import Group, GroupCreate, GroupModify
+from app.models.group import GroupCreate, GroupModify
 from app.models.node import NodeUsageResponse
 from app.models.user import (
     ReminderType,
@@ -416,7 +417,7 @@ def update_user(db: Session, dbuser: User, modify: UserModify) -> User:
     if modify.proxy_settings:
         dbuser.proxy_settings.update(modify.proxy_settings)
     if modify.group_ids:
-        dbuser.groups = db.query(Group).filter(Group.id.in_(modify.group_ids)).all()
+        dbuser.groups = get_groups_by_ids(db, modify.group_ids)
     # if modify.inbounds:
     #    for proxy_type, tags in modify.excluded_inbounds.items():
     #        dbproxy = db.query(Proxy).where(
@@ -1100,7 +1101,7 @@ def create_user_template(db: Session, user_template: UserTemplateCreate) -> User
         expire_duration=user_template.expire_duration,
         username_prefix=user_template.username_prefix,
         username_suffix=user_template.username_suffix,
-        groups=db.query(Group).filter(Group.id.in_(user_template.group_ids)).all(),
+        groups=get_groups_by_ids(db, user_template.group_ids) if user_template.group_ids else None,
     )
 
     db.add(dbuser_template)
@@ -1133,9 +1134,8 @@ def update_user_template(
         dbuser_template.username_prefix = modified_user_template.username_prefix
     if modified_user_template.username_suffix is not None:
         dbuser_template.username_suffix = modified_user_template.username_suffix
-
-    if modified_user_template.groups:
-        dbuser_template.groups = db.query(Group).filter(Group.id.in_(modified_user_template.group_ids)).all()
+    if modified_user_template.group_ids:
+        dbuser_template.groups = get_groups_by_ids(db, modified_user_template.group_ids)
 
     db.commit()
     db.refresh(dbuser_template)
@@ -1544,6 +1544,20 @@ def get_group_by_id(db: Session, group_id: int) -> Group | None:
         Optional[Group]: The Group object if found, None otherwise.
     """
     return db.query(Group).filter(Group.id == group_id).first()
+
+
+def get_groups_by_ids(db: Session, group_ids: list[int]) -> list[Group]:
+    """
+    Retrieves a list of groups by their IDs.
+
+    Args:
+        db (Session): The database session.
+        group_ids (list[int]): The IDs of the groups to retrieve.
+
+    Returns:
+        list[Group]: A list of Group objects.
+    """
+    return db.query(Group).filter(Group.id.in_(group_ids)).all()
 
 
 def update_group(db: Session, dbgroup: Group, modified_group: GroupModify) -> Group:

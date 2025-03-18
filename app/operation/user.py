@@ -7,8 +7,9 @@ from app.operation import BaseOperator
 from app.db import Session
 from app.models.user import UserResponse, UserCreate, UserModify, UserStatus
 from app.models.admin import Admin
-from app.db.models import User,  NextPlan
+from app.db.models import User, NextPlan
 from app.db.crud import (
+    get_groups_by_ids,
     get_user,
     create_user,
     get_user_template,
@@ -30,7 +31,7 @@ class UserOperator(BaseOperator):
     async def get_validated_user(self, db: Session, username: str, admin: Admin) -> User:
         db_user = get_user(db, username)
         if db_user is None:
-            raise self.raise_error(message="User not found", code=404)
+            self.raise_error(message="User not found", code=404)
 
         if not (admin.is_sudo or (db_user.admin and db_user.admin.username == admin.username)):
             self.raise_error(message="You're not allowed", code=403)
@@ -57,6 +58,7 @@ class UserOperator(BaseOperator):
             **user_data,
             expire=(new_user.expire or None),
             admin=db_admin,
+            groups=get_groups_by_ids(db, new_user.group_ids) if new_user.group_ids else None,
             next_plan=NextPlan(**new_user.next_plan.model_dump()) if new_user.next_plan else None,
         )
         try:
