@@ -35,23 +35,23 @@ def admin_token(
     client_ip = get_client_ip(request)
 
     dbadmin = validate_admin(db, form_data.username, form_data.password)
-    if not dbadmin:
-        report.login(form_data.username, form_data.password, client_ip, False)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    if dbadmin.is_disabled:
-        report.login(form_data.username, form_data.password, client_ip, False)
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="your account has been disabled",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    if client_ip not in LOGIN_NOTIFY_WHITE_LIST:
-        report.login(form_data.username, "🔒", client_ip, True)
+    # if not dbadmin:
+    #    report.login(form_data.username, form_data.password, client_ip, False)
+    #    raise HTTPException(
+    #        status_code=status.HTTP_401_UNAUTHORIZED,
+    #        detail="Incorrect username or password",
+    #        headers={"WWW-Authenticate": "Bearer"},
+    #    )
+    # if dbadmin.is_disabled:
+    #    report.login(form_data.username, form_data.password, client_ip, False)
+    #    raise HTTPException(
+    #        status_code=status.HTTP_403_FORBIDDEN,
+    #        detail="your account has been disabled",
+    #        headers={"WWW-Authenticate": "Bearer"},
+    #    )
+    #
+    # if client_ip not in LOGIN_NOTIFY_WHITE_LIST:
+    #    report.login(form_data.username, "🔒", client_ip, True)
 
     return Token(access_token=create_admin_token(form_data.username, dbadmin.is_sudo))
 

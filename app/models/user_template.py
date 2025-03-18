@@ -31,7 +31,7 @@ class UserTemplateCreate(UserTemplate):
     @field_validator("group_ids", mode="after")
     @classmethod
     def group_ids_validator(cls, v):
-        if not v and len(v) < 1:
+        if v and len(v) < 1:
             raise ValueError("you must select at least one group")
         return v
 
