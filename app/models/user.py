@@ -66,7 +66,7 @@ class User(BaseModel):
     online_at: Optional[datetime] = Field(None, nullable=True)
     on_hold_expire_duration: Optional[int] = Field(None, nullable=True)
     on_hold_timeout: datetime | int | None = Field(None, nullable=True)
-    group_ids: list[int] | None = Field(None, nullable=True)
+    group_ids: list[int] | None = Field(default_factory=list)
     auto_delete_in_days: Optional[int] = Field(None, nullable=True)
 
     next_plan: Optional[NextPlanModel] = Field(None, nullable=True)

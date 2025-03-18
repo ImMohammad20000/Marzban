@@ -8,7 +8,7 @@ GROUPNAME_REGEXP = re.compile(r"^(?=\w{3,64}\b)[a-zA-Z0-9]+(?:[a-zA-Z0-9]+)*$")
 
 class Group(BaseModel):
     name: str
-    inbound_tags: List[str] | None = None
+    inbound_tags: list[str] | None = []
     is_disabled: bool = False
 
     model_config = ConfigDict(from_attributes=True)

@@ -2,27 +2,26 @@ import asyncio
 
 from sqlalchemy.exc import IntegrityError
 
-from app.dependencies import get_validated_group
-from app.operation import BaseOperator
+from app.backend import config
 from app.db import Session
-from app.models.user import UserResponse, UserCreate, UserModify, UserStatus
-from app.models.admin import Admin
-from app.db.models import User, NextPlan
 from app.db.crud import (
+    create_user,
+    get_admin,
     get_groups_by_ids,
     get_user,
-    create_user,
     get_user_template,
-    update_user,
     remove_user,
     reset_user_data_usage,
     revoke_user_sub,
-    get_admin,
+    update_user,
 )
+from app.db.models import NextPlan, User
+from app.dependencies import get_validated_group
+from app.models.admin import Admin
+from app.models.user import UserCreate, UserModify, UserResponse, UserStatus
 from app.node import manager as node_manager
-from app.backend import config
+from app.operation import BaseOperator
 from app.utils.logger import get_logger
-
 
 logger = get_logger("user-operator")
 
@@ -48,17 +47,19 @@ class UserOperator(BaseOperator):
         if new_user.next_plan is not None and new_user.next_plan.user_template_id is not None:
             get_user_template(new_user.next_plan.user_template_id)
 
-        user_data = new_user.model_dump(exclude={"next_plan", "proxies", "expire"}, exclude_none=True)
+        user_data = new_user.model_dump(exclude={"next_plan", "proxies", "expire", "group_ids"}, exclude_none=True)
         if new_user.group_ids:
+            all_groups = []
             for group_id in new_user.group_ids:
-                get_validated_group(group_id, admin, db)
+                db_group = get_validated_group(group_id, admin, db)
+                all_groups.append(db_group)
 
         db_admin = get_admin(db, admin.username)
         db_user = User(
             **user_data,
             expire=(new_user.expire or None),
             admin=db_admin,
-            groups=get_groups_by_ids(db, new_user.group_ids) if new_user.group_ids else None,
+            groups=all_groups,
             next_plan=NextPlan(**new_user.next_plan.model_dump()) if new_user.next_plan else None,
         )
         try:
