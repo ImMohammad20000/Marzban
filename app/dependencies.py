@@ -5,7 +5,6 @@ from fastapi import Depends, HTTPException
 
 from app.db import Session, crud, get_db
 from app.models.admin import Admin, AdminInDB, AdminValidationResult
-from app.models.group import Group
 from app.models.user import UserResponse, UserStatus
 from app.subscription.share import generate_v2ray_links
 from app.utils.jwt import get_subscription_payload
@@ -111,9 +110,7 @@ def get_v2ray_links(user: UserResponse) -> list:
     )
 
 
-def get_validated_group(
-    group_id: int, admin: Admin = Depends(Admin.get_current), db: Session = Depends(get_db)
-):
+def get_validated_group(group_id: int, admin: Admin = Depends(Admin.get_current), db: Session = Depends(get_db)):
     dbgroup = crud.get_group_by_id(db, group_id)
     if not dbgroup:
         raise HTTPException(status_code=404, detail="Group not found")

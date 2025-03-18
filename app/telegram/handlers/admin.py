@@ -1740,11 +1740,13 @@ def confirm_user_command(call: types.CallbackQuery):
 
             for protocol in backend.config.inbounds_by_protocol:
                 if protocol in inbounds and protocol not in db_user.inbounds:
-                    proxies.update({
-                        protocol: {"flow": TELEGRAM_DEFAULT_VLESS_FLOW}
-                        if TELEGRAM_DEFAULT_VLESS_FLOW and protocol == ProxyTypes.VLESS
-                        else {}
-                    })
+                    proxies.update(
+                        {
+                            protocol: {"flow": TELEGRAM_DEFAULT_VLESS_FLOW}
+                            if TELEGRAM_DEFAULT_VLESS_FLOW and protocol == ProxyTypes.VLESS
+                            else {}
+                        }
+                    )
                 elif protocol in db_user.inbounds and protocol not in inbounds:
                     del proxies[protocol]
 
@@ -2113,11 +2115,13 @@ def confirm_user_command(call: types.CallbackQuery):
                     proxies = {p.type.value: p.settings for p in user.proxy_settings}
                     for protocol in backend.config.inbounds_by_protocol:
                         if protocol in new_inbounds and protocol not in user.inbounds:
-                            proxies.update({
-                                protocol: {"flow": TELEGRAM_DEFAULT_VLESS_FLOW}
-                                if TELEGRAM_DEFAULT_VLESS_FLOW and protocol == ProxyTypes.VLESS
-                                else {}
-                            })
+                            proxies.update(
+                                {
+                                    protocol: {"flow": TELEGRAM_DEFAULT_VLESS_FLOW}
+                                    if TELEGRAM_DEFAULT_VLESS_FLOW and protocol == ProxyTypes.VLESS
+                                    else {}
+                                }
+                            )
                         elif protocol in user.inbounds and protocol not in new_inbounds:
                             del proxies[protocol]
                     try:

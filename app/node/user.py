@@ -6,7 +6,7 @@ from app.db import GetDB, User
 from app.db.models import UserStatus
 
 
-def serialize_user_for_node(id:int, username: str, user_settings: dict, inbounds: list[str] = None):
+def serialize_user_for_node(id: int, username: str, user_settings: dict, inbounds: list[str] = None):
     vmess_settings = user_settings.get("vmess", {})
     vless_settings = user_settings.get("vless", {})
     trojan_settings = user_settings.get("trojan", {})

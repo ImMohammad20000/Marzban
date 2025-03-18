@@ -305,21 +305,23 @@ def process_inbounds_and_tags(
         if host.get("use_sni_as_host", False) and sni:
             req_host = sni
 
-        host_inbound.update({
-            "port": host["port"] or host_inbound["port"],
-            "sni": sni,
-            "host": req_host,
-            "tls": host_inbound["tls"] if host["tls"] is None else host["tls"],
-            "alpn": host["alpn"] if host["alpn"] else None,
-            "path": path,
-            "fp": host["fingerprint"] or host_inbound.get("fp", ""),
-            "ais": host["allowinsecure"] or host_inbound.get("allowinsecure", ""),
-            "fragment_settings": host["fragment_settings"],
-            "noise_settings": host["noise_settings"],
-            "random_user_agent": host["random_user_agent"],
-            "http_headers": host["http_headers"],
-            "mux_settings": host["mux_settings"],
-        })
+        host_inbound.update(
+            {
+                "port": host["port"] or host_inbound["port"],
+                "sni": sni,
+                "host": req_host,
+                "tls": host_inbound["tls"] if host["tls"] is None else host["tls"],
+                "alpn": host["alpn"] if host["alpn"] else None,
+                "path": path,
+                "fp": host["fingerprint"] or host_inbound.get("fp", ""),
+                "ais": host["allowinsecure"] or host_inbound.get("allowinsecure", ""),
+                "fragment_settings": host["fragment_settings"],
+                "noise_settings": host["noise_settings"],
+                "random_user_agent": host["random_user_agent"],
+                "http_headers": host["http_headers"],
+                "mux_settings": host["mux_settings"],
+            }
+        )
         if ts := host["transport_settings"]:
             for _, v in ts.items():
                 if v:

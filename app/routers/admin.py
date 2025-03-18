@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.exc import IntegrityError
 
@@ -8,9 +8,8 @@ from app import backend
 from app.db import Session, crud, get_db
 from app.dependencies import get_admin_by_username, validate_admin
 from app.models.admin import Admin, AdminCreate, AdminModify, Token
-from app.utils import report, responses
+from app.utils import responses
 from app.utils.jwt import create_admin_token
-from config import LOGIN_NOTIFY_WHITE_LIST
 
 router = APIRouter(tags=["Admin"], prefix="/api", responses={401: responses._401})
 
@@ -32,7 +31,7 @@ def admin_token(
     db: Session = Depends(get_db),
 ):
     """Authenticate an admin and issue a token."""
-    client_ip = get_client_ip(request)
+    # client_ip = get_client_ip(request)
 
     dbadmin = validate_admin(db, form_data.username, form_data.password)
     # if not dbadmin:
