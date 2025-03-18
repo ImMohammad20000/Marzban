@@ -44,22 +44,6 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('user_id', 'groups_id')
     )
-    op.create_table('admins_groups_association',
-    sa.Column('admin_id', sa.Integer(), nullable=False),
-    sa.Column('group_id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['admin_id'], ['admins.id'], ),
-    sa.ForeignKeyConstraint(['group_id'], ['groups.id'], ),
-    sa.PrimaryKeyConstraint('admin_id', 'group_id')
-    )
-    op.create_table('admins_templates_association',
-    sa.Column('admin_id', sa.Integer(), nullable=False),
-    sa.Column('template_id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['admin_id'], ['admins.id'], ),
-    sa.ForeignKeyConstraint(['template_id'], ['user_templates.id'], ),
-    sa.PrimaryKeyConstraint('admin_id', 'template_id')
-    )
-    op.add_column('admins', sa.Column('all_groups_access', sa.Boolean(), server_default='0', nullable=False))
-    op.add_column('admins', sa.Column('all_templates_access', sa.Boolean(), server_default='0', nullable=False))
     op.add_column('users', sa.Column('proxy_settings', sa.JSON(none_as_null=True), server_default=sa.text("'{}'"), nullable=False))
     # ### end Alembic commands ###
 
@@ -69,10 +53,6 @@ def downgrade() -> None:
     op.drop_table('users_groups_association')
     op.drop_table('template_group_association')
     op.drop_table('inbounds_groups_association')
-    op.drop_table('admins_groups_association')
-    op.drop_table('admins_templates_association')
     op.drop_table('groups')
-    op.drop_column('admins', 'all_templates_access')
-    op.drop_column('admins', 'all_groups_access')
     op.drop_column('users', 'proxy_settings')
     # ### end Alembic commands ###

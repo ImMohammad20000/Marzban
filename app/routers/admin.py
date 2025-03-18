@@ -1,5 +1,5 @@
 from typing import List, Optional
-from app.dependencies import get_validated_user_template, get_validated_group
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.exc import IntegrityError
@@ -67,12 +67,6 @@ def create_admin(
     admin: Admin = Depends(Admin.check_sudo_admin),
 ):
     """Create a new admin if the current admin has sudo privileges."""
-    if new_admin.group_ids:
-        for group_id in new_admin.group_ids:
-            get_validated_group(group_id, admin, db)
-    if new_admin.template_ids:
-        for template_id in new_admin.template_ids:
-            get_validated_user_template(template_id, db)
     try:
         dbadmin = crud.create_admin(db, new_admin)
     except IntegrityError:
@@ -94,13 +88,6 @@ def modify_admin(
     current_admin: Admin = Depends(Admin.check_sudo_admin),
 ):
     """Modify an existing admin's details."""
-    if modified_admin.group_ids:
-        for group_id in modified_admin.group_ids:
-            get_validated_group(group_id, current_admin, db)
-    if modified_admin.template_ids:
-        for template_id in modified_admin.template_ids:
-            get_validated_user_template(template_id, db)
-
     if (dbadmin.username != current_admin.username) and dbadmin.is_sudo:
         raise HTTPException(
             status_code=403,

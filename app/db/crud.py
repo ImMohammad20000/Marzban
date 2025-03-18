@@ -560,7 +560,7 @@ def reset_user_by_next(db: Session, dbuser: User) -> User:
         )
         dbuser.expire = timedelta(seconds=dbuser.next_plan.expire) + datetime.now(UTC)
     else:
-        dbuser.groups = dbuser.next_plan.user_template.groups
+        dbuser.inbounds = dbuser.next_plan.user_template.inbounds
         dbuser.data_limit = dbuser.next_plan.user_template.data_limit + (
             0 if dbuser.next_plan.add_remaining_traffic else dbuser.data_limit or 0 - dbuser.used_traffic
         )
@@ -909,14 +909,7 @@ def create_admin(db: Session, admin: AdminCreate) -> Admin:
         sub_domain=admin.sub_domain,
         profile_title=admin.profile_title,
         support_url=admin.support_url,
-        all_groups_access=admin.all_groups_access,
-        all_templates_access=admin.all_templates_access,
-        groups=db.query(Group).filter(Group.id.in_(admin.group_ids)).all() if admin.group_ids else None,
-        templates=db.query(UserTemplate).filter(UserTemplate.id.in_(admin.template_ids)).all()
-        if admin.template_ids
-        else None,
     )
-
     db.add(dbadmin)
     db.commit()
     db.refresh(dbadmin)
@@ -954,14 +947,6 @@ def update_admin(db: Session, dbadmin: Admin, modified_admin: AdminModify) -> Ad
         dbadmin.support_url = modified_admin.support_url
     if modified_admin.profile_title:
         dbadmin.profile_title = modified_admin.profile_title
-    if modified_admin.all_groups_access is not None:
-        dbadmin.all_groups_access = modified_admin.all_groups_access
-    if modified_admin.all_templates_access is not None:
-        dbadmin.all_templates_access = modified_admin.all_templates_access
-    if modified_admin.group_ids:
-        dbadmin.groups = db.query(Group).filter(Group.id.in_(modified_admin.group_ids)).all()
-    if modified_admin.template_ids:
-        dbadmin.templates = db.query(UserTemplate).filter(UserTemplate.id.in_(modified_admin.template_ids)).all()
 
     db.commit()
     db.refresh(dbadmin)
@@ -999,14 +984,6 @@ def partial_update_admin(db: Session, dbadmin: Admin, modified_admin: AdminParti
         dbadmin.support_url = modified_admin.support_url
     if modified_admin.profile_title:
         dbadmin.profile_title = modified_admin.profile_title
-    if modified_admin.all_groups_access is not None:
-        dbadmin.all_groups_access = modified_admin.all_groups_access
-    if modified_admin.all_templates_access is not None:
-        dbadmin.all_templates_access = modified_admin.all_templates_access
-    if modified_admin.group_ids:
-        dbadmin.groups = db.query(Group).filter(Group.id.in_(modified_admin.group_ids)).all()
-    if modified_admin.template_ids:
-        dbadmin.templates = db.query(UserTemplate).filter(UserTemplate.id.in_(modified_admin.template_ids)).all()
 
     db.commit()
     db.refresh(dbadmin)
@@ -1177,27 +1154,22 @@ def remove_user_template(db: Session, dbuser_template: UserTemplate):
     db.commit()
 
 
-def get_user_template(db: Session, user_template_id: int, admin: Admin | None = None) -> UserTemplate:
+def get_user_template(db: Session, user_template_id: int) -> UserTemplate:
     """
     Retrieves a user template by its ID.
 
     Args:
         db (Session): Database session.
         user_template_id (int): The ID of the user template.
-        admin (Admin | None): The admin object.
 
     Returns:
         UserTemplate: The user template object.
     """
-    template = db.query(UserTemplate).filter(UserTemplate.id == user_template_id)
-    if admin:
-        if not admin.is_sudo and not admin.all_templates_access:
-            template = template.filter(UserTemplate.id.in_(admin.template_ids))
-    return template.first()
+    return db.query(UserTemplate).filter(UserTemplate.id == user_template_id).first()
 
 
 def get_user_templates(
-    db: Session, offset: Union[int, None] = None, limit: Union[int, None] = None, admin: Admin | None = None
+    db: Session, offset: Union[int, None] = None, limit: Union[int, None] = None
 ) -> List[UserTemplate]:
     """
     Retrieves a list of user templates with optional pagination.
@@ -1206,7 +1178,6 @@ def get_user_templates(
         db (Session): Database session.
         offset (Union[int, None]): The number of records to skip (for pagination).
         limit (Union[int, None]): The maximum number of records to return.
-        admin (Admin | None): The admin object.
 
     Returns:
         List[UserTemplate]: A list of user template objects.
@@ -1216,9 +1187,7 @@ def get_user_templates(
         dbuser_templates = dbuser_templates.offset(offset)
     if limit:
         dbuser_templates = dbuser_templates.limit(limit)
-    if admin:
-        if not admin.is_sudo and not admin.all_templates_access:
-            dbuser_templates = dbuser_templates.filter(UserTemplate.id.in_(admin.template_ids))
+
     return dbuser_templates.all()
 
 
@@ -1538,7 +1507,7 @@ def create_group(db: Session, group: GroupCreate) -> Group:
     return dbgroup
 
 
-def get_group(db: Session, offset: int = None, limit: int = None, admin: Admin | None = None):
+def get_group(db: Session, offset: int = None, limit: int = None):
     """
     Retrieves a list of groups with optional pagination.
 
@@ -1546,7 +1515,6 @@ def get_group(db: Session, offset: int = None, limit: int = None, admin: Admin |
         db (Session): The database session.
         offset (int, optional): The number of records to skip (for pagination).
         limit (int, optional): The maximum number of records to return.
-        admin (Admin, optional): The admin object to filter groups by.
 
     Returns:
         tuple: A tuple containing:
@@ -1558,32 +1526,24 @@ def get_group(db: Session, offset: int = None, limit: int = None, admin: Admin |
         groups = groups.offset(offset)
     if limit:
         groups = groups.limit(limit)
-    if admin:
-        if not admin.is_sudo and not admin.all_groups_access:
-            groups = groups.filter(Group.id.in_(admin.groups))
 
     count = groups.count()
 
     return groups.all(), count
 
 
-def get_group_by_id(db: Session, group_id: int, admin: Admin | None = None) -> Group | None:
+def get_group_by_id(db: Session, group_id: int) -> Group | None:
     """
     Retrieves a group by its ID.
 
     Args:
         db (Session): The database session.
         group_id (int): The ID of the group to retrieve.
-        admin (Admin, optional): The admin object to filter groups by.
+
     Returns:
         Optional[Group]: The Group object if found, None otherwise.
     """
-    group = db.query(Group).filter(Group.id == group_id)
-    if admin:
-        if not admin.is_sudo and not admin.all_groups_access:
-            group = group.filter(Group.id.in_(admin.groups))
-
-    return group.first()
+    return db.query(Group).filter(Group.id == group_id).first()
 
 
 def update_group(db: Session, dbgroup: Group, modified_group: GroupModify) -> Group:
