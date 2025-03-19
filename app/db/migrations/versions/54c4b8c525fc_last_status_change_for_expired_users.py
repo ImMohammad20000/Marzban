@@ -8,7 +8,8 @@ Create Date: 2024-07-25 11:15:51.776880
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.sql import func, case
+from sqlalchemy.sql import func, case, text
+from sqlalchemy import text
 
 # revision identifiers, used by Alembic.
 revision = '54c4b8c525fc'
@@ -28,35 +29,30 @@ users_table = sa.Table(
 
 
 def upgrade() -> None:
+    # Get database connection and dialect
     connection = op.get_bind()
+    dialect = connection.dialect.name
 
-    # MySQL and SQLite handle datetime conversion differently
-    if connection.engine.name == "mysql":
-        # For MySQL: Use FROM_UNIXTIME
-        update_stmt = (
-            sa.update(users_table)
-            .where(
-                sa.and_(
-                    users_table.c.status == 'expired',
-                    users_table.c.expire.isnot(None)
-                )
-            )
-            .values(last_status_change=func.from_unixtime(users_table.c.expire))
-        )
-    else:
-        # For SQLite: Use DATETIME with 'unixepoch'
-        update_stmt = (
-            sa.update(users_table)
-            .where(
-                sa.and_(
-                    users_table.c.status == 'expired',
-                    users_table.c.expire.isnot(None)
-                )
-            )
-            .values(last_status_change=func.datetime(users_table.c.expire, 'unixepoch'))
-        )
+    # Create the update statement based on dialect
+    if dialect == 'postgresql':
+        update_stmt = text("""
+            UPDATE users 
+            SET last_status_change = to_timestamp(expire)
+            WHERE status = 'expired' AND expire IS NOT NULL
+        """)
+    elif dialect == 'mysql':
+        update_stmt = text("""
+            UPDATE users 
+            SET last_status_change = FROM_UNIXTIME(expire)
+            WHERE status = 'expired' AND expire IS NOT NULL
+        """)
+    else:  # sqlite
+        update_stmt = text("""
+            UPDATE users 
+            SET last_status_change = datetime(expire, 'unixepoch')
+            WHERE status = 'expired' AND expire IS NOT NULL
+        """)
 
-    # Execute the update statement
     connection.execute(update_stmt)
 
 

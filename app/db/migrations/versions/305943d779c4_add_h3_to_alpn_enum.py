@@ -7,6 +7,7 @@ Create Date: 2024-07-03 19:27:15.282711
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 
 # revision identifiers, used by Alembic.
@@ -32,84 +33,80 @@ temp_type = sa.Enum(*new_values, name=temp_enum_name)
 # Describing of table
 table_name = "hosts"
 column_name = "alpn"
-temp_table = sa.sql.table(
-    table_name,
-    sa.Column(
-        column_name,
-        new_type,
-        nullable=False
-    )
-)
 
 
 def upgrade():
-    # temp type to use instead of old one
-    temp_type.create(op.get_bind(), checkfirst=False)
-
-    # changing of column type from old enum to new one.
-    # SQLite will create temp table for this
-    with op.batch_alter_table(table_name) as batch_op:
-        batch_op.alter_column(
-            column_name,
-            existing_type=old_type,
-            type_=temp_type,
-            existing_nullable=False,
-            postgresql_using=f"{column_name}::text::{temp_enum_name}"
-        )
-
-    # remove old enum, create new enum
-    old_type.drop(op.get_bind(), checkfirst=False)
+    # Create new enum type
     new_type.create(op.get_bind(), checkfirst=False)
 
-    # changing of column type from temp enum to new one.
-    # SQLite will create temp table for this
-    with op.batch_alter_table(table_name) as batch_op:
-        batch_op.alter_column(
-            column_name,
-            existing_type=temp_type,
-            type_=new_type,
-            existing_nullable=False,
-            postgresql_using=f"{column_name}::text::{enum_name}"
+    # Handle PostgreSQL specifically
+    if isinstance(op.get_bind().dialect, postgresql.dialect):
+        # Create a temporary text column
+        with op.batch_alter_table(table_name) as batch_op:
+            batch_op.add_column(sa.Column('alpn_new', sa.Text, nullable=True))
+        
+        # Copy data from old column to new column
+        connection = op.get_bind()
+        connection.execute(
+            sa.text(f"UPDATE {table_name} SET alpn_new = alpn::text")
         )
-
-    # remove temp enum
-    temp_type.drop(op.get_bind(), checkfirst=False)
+        
+        # Drop the old column and rename the new one
+        with op.batch_alter_table(table_name) as batch_op:
+            batch_op.drop_column('alpn')
+            batch_op.alter_column('alpn_new',
+                new_column_name='alpn',
+                type_=new_type,
+                nullable=False,
+                server_default=sa.text("'none'"),
+                postgresql_using='alpn_new::alpn'
+            )
+    else:
+        # For MySQL and SQLite, just modify the column type
+        with op.batch_alter_table(table_name) as batch_op:
+            batch_op.alter_column(
+                column_name,
+                existing_type=old_type,
+                type_=new_type,
+                existing_nullable=False
+            )
 
 
 def downgrade():
-    # old enum don't have new value anymore.
-    # before downgrading from new enum to old one,
-    # we should replace new value from new enum with
-    # somewhat of old values from old enum
-    update_query = (
-        temp_table
-        .update()
-        .where(temp_table.c.alpn.in_(downgrade_from))
-        .values(alpn=downgrade_to)
-    )
-    op.execute(update_query)
-
-    temp_type.create(op.get_bind(), checkfirst=False)
-
-    with op.batch_alter_table(table_name) as batch_op:
-        batch_op.alter_column(
-            column_name,
-            existing_type=new_type,
-            type_=temp_type,
-            existing_nullable=False,
-            postgresql_using=f"{column_name}::text::{temp_enum_name}"
-        )
-
-    new_type.drop(op.get_bind(), checkfirst=False)
+    # Create old enum type
     old_type.create(op.get_bind(), checkfirst=False)
 
-    with op.batch_alter_table(table_name) as batch_op:
-        batch_op.alter_column(
-            column_name,
-            existing_type=temp_type,
-            type_=old_type,
-            existing_nullable=False,
-            postgresql_using=f"{column_name}::text::{enum_name}"
+    # Handle PostgreSQL specifically
+    if isinstance(op.get_bind().dialect, postgresql.dialect):
+        # Create a temporary text column
+        with op.batch_alter_table(table_name) as batch_op:
+            batch_op.add_column(sa.Column('alpn_old', sa.Text, nullable=True))
+        
+        # Copy data from current column to old column, replacing new values
+        connection = op.get_bind()
+        connection.execute(
+            sa.text(f"UPDATE {table_name} SET alpn_old = CASE WHEN alpn::text IN {downgrade_from} THEN '{downgrade_to}' ELSE alpn::text END")
         )
+        
+        # Drop the current column and rename the old one
+        with op.batch_alter_table(table_name) as batch_op:
+            batch_op.drop_column('alpn')
+            batch_op.alter_column('alpn_old',
+                new_column_name='alpn',
+                type_=old_type,
+                nullable=False,
+                server_default=sa.text("'none'"),
+                postgresql_using='alpn_old::alpn'
+            )
+    else:
+        # For MySQL and SQLite, just modify the column type back
+        with op.batch_alter_table(table_name) as batch_op:
+            batch_op.alter_column(
+                column_name,
+                existing_type=new_type,
+                type_=old_type,
+                existing_nullable=False
+            )
 
-    temp_type.drop(op.get_bind(), checkfirst=False)
+    # Drop the new enum type
+    new_type.drop(op.get_bind(), checkfirst=False)

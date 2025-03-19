@@ -544,6 +544,7 @@ dependencies = [
     { name = "markupsafe" },
     { name = "passlib" },
     { name = "psutil" },
+    { name = "psycopg2" },
     { name = "pydantic" },
     { name = "pyjwt" },
     { name = "pymysql" },
@@ -599,6 +600,7 @@ requires-dist = [
     { name = "markupsafe", specifier = "==2.1.1" },
     { name = "passlib", specifier = "==1.7.4" },
     { name = "psutil", specifier = "==5.9.4" },
+    { name = "psycopg2", specifier = ">=2.9.10" },
     { name = "pydantic", specifier = "==2.10.4" },
     { name = "pyjwt", specifier = "==2.8.0" },
     { name = "pymysql", specifier = "==1.1.1" },
@@ -727,6 +729,17 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/3e/af/fe14b984e8b0f778d502d387b789d846cb2fcc3989f63be942741266d8c8/psutil-5.9.4-cp36-abi3-win32.whl", hash = "sha256:149555f59a69b33f056ba1c4eb22bb7bf24332ce631c44a319cec09f876aaeff", size = 247217 },
     { url = "https://files.pythonhosted.org/packages/25/6e/ba97809175c90cbdcd33b470e466ebf0854d15d1506e605cc0ddd284d5b6/psutil-5.9.4-cp36-abi3-win_amd64.whl", hash = "sha256:fd8522436a6ada7b4aad6638662966de0d61d241cb821239b2ae7013d41a43d4", size = 252462 },
     { url = "https://files.pythonhosted.org/packages/79/26/f026804298b933b11640cc2d15155a545805df732e5ead3a2ad7cf45a38b/psutil-5.9.4-cp38-abi3-macosx_11_0_arm64.whl", hash = "sha256:6001c809253a29599bc0dfd5179d9f8a5779f9dffea1da0f13c53ee568115e1e", size = 244234 },
+]
+
+[[package]]
+name = "psycopg2"
+version = "2.9.10"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/62/51/2007ea29e605957a17ac6357115d0c1a1b60c8c984951c19419b3474cdfd/psycopg2-2.9.10.tar.gz", hash = "sha256:12ec0b40b0273f95296233e8750441339298e6a572f7039da5b260e3c8b60e11", size = 385672 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3d/16/4623fad6076448df21c1a870c93a9774ad8a7b4dd1660223b59082dd8fec/psycopg2-2.9.10-cp312-cp312-win32.whl", hash = "sha256:65a63d7ab0e067e2cdb3cf266de39663203d38d6a8ed97f5ca0cb315c73fe067", size = 1025113 },
+    { url = "https://files.pythonhosted.org/packages/66/de/baed128ae0fc07460d9399d82e631ea31a1f171c0c4ae18f9808ac6759e3/psycopg2-2.9.10-cp312-cp312-win_amd64.whl", hash = "sha256:4a579d6243da40a7b3182e0430493dbd55950c493d8c68f4eec0b302f6bbf20e", size = 1163951 },
+    { url = "https://files.pythonhosted.org/packages/ae/49/a6cfc94a9c483b1fa401fbcb23aca7892f60c7269c5ffa2ac408364f80dc/psycopg2-2.9.10-cp313-cp313-win_amd64.whl", hash = "sha256:91fd603a2155da8d0cfcdbf8ab24a2d54bca72795b90d2a3ed2b6da8d979dee2", size = 2569060 },
 ]
 
 [[package]]
