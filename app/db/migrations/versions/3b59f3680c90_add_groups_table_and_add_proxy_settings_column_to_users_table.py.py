@@ -7,6 +7,7 @@ Create Date: 2025-03-17 08:35:44.071861
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import mysql, postgresql
 
 
 # revision identifiers, used by Alembic.
@@ -44,7 +45,30 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('user_id', 'groups_id')
     )
-    op.add_column('users', sa.Column('proxy_settings', sa.JSON(none_as_null=True), server_default=sa.text("'{}'"), nullable=False))
+
+    # Handle proxy_settings column addition based on database type
+    dialect = op.get_bind().dialect.name
+    if dialect == 'mysql':
+        # For MySQL: Add column first, then update with default value
+        op.add_column('users', sa.Column('proxy_settings', mysql.JSON(), nullable=True))
+        op.execute("UPDATE users SET proxy_settings = '{}'")
+        # Make it not nullable after setting default, specifying the existing type
+        with op.batch_alter_table('users') as batch_op:
+            batch_op.alter_column('proxy_settings',
+                                existing_type=mysql.JSON(),
+                                nullable=False)
+    elif dialect == 'postgresql':
+        # For PostgreSQL: Can use JSONB with default
+        op.add_column('users', sa.Column('proxy_settings', 
+                                       postgresql.JSONB(), 
+                                       server_default='{}', 
+                                       nullable=False))
+    else:
+        # For SQLite and others: Use standard JSON
+        op.add_column('users', sa.Column('proxy_settings', 
+                                       sa.JSON(none_as_null=True), 
+                                       server_default='{}', 
+                                       nullable=False))
     # ### end Alembic commands ###
 
 
